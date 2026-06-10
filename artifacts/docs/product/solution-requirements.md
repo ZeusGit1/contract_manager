@@ -115,9 +115,13 @@ The platform must accept a bulk upload of the existing contracts spreadsheet to 
 | ServiceDescription | text | N (Facilities only) | Description of services being filled |
 | ITType | enum | N (IT only) | `Software` / `Professional Services` |
 | ApplicationName | text | N (IT Software only) | Application name |
+| ApplicationVersion | text | N (IT Software only) | Version / flavor (e.g. `Lexis+`, `Enterprise edition`) |
 | LicensingType | enum | N (IT Software only) | `Subscription` / `Perpetual` / `Per-User` |
 | NumberOfUsers | integer | N (IT Software only) | Seat count |
 | CloudOrOnPrem | enum | N (IT Software only) | `Cloud` / `On-Premise` / `Hybrid` |
+| SystemAccess | text | N (IT only) | Free-text: what firm systems the contract / vendor gets access to |
+| Permissions | text | N (IT only) | Free-text: scope of permissions granted (read / write / admin / etc.) |
+| Integrations | text | N (IT only) | Free-text: which firm systems the product integrates with |
 | AccessesPersonalData | Y/N | N (IT only) | Risk-review attribute |
 | AccessesPHI | Y/N | N (IT only) | Risk-review attribute |
 | UsesAI | Y/N | N (IT only) | Risk-review attribute |
@@ -335,6 +339,7 @@ Open-ended. Target a working POC that:
 | Date | Changed By | Section(s) Affected | What Changed & Why |
 |---|---|---|---|
 | 2026-06-10 | AI Solutions Analyst | All | Initial requirements captured via intake interview based on Lisa Farkas's intake session. Tier 2 assigned; reasoning recorded in Section 1. Data sensitivity confirmed (Confidential + Privileged + PII). POC scope excludes iManage and SpendConnect integrations but the architecture must support adding them later. Test seed data generated at `artifacts/docs/product/sample-data/contracts-seed-data.xlsx` (31 contracts, 23 vendors, 15 users). |
+| 2026-06-10 | AI Solutions Analyst | Section 4 (Data Schema), Section 5 (implicit via blueprint) | Updated alongside design-code-handoff. Added structured IT fields to the Data Schema: `ApplicationVersion`, `SystemAccess`, `Permissions`, `Integrations`. These were named in the original intake notes as software details and risk-review attributes but had been simplified out of the seed schema during gathering. The prototype's IT Intake form refines but does not gate on them; restoring them here gives Development the structured spec for the deferred Event / Facilities / IT forms. Workflow model confirmed: **no formal approval gates** — Attorney Reviewers comment and attach concurrently; Procurement assigns reviewers per contract type and advances status. Vendor Detail page (originally listed as deferred screen S9 in the blueprint) dropped in favor of a vendor summary modal accessible from the Vendor Master List. "Requester" is the canonical spelling — Code normalizes the prototype's "Requestor" labels on build. |
 | | | | |
 
 ---
