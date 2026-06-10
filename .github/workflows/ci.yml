@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  # Reference job: shows how to pin Node for any Node-based gate
+  # (prettier, eslint, npm audit, jest, playwright). Replace the
+  # placeholder step with real gates per rules/dev/ci-pipeline.md.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Placeholder
+        run: echo "CI placeholder — fill in web gates."
