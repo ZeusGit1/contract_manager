@@ -1,0 +1,57 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 720px;
+}
+.title {
+  font-family: var(--font-mix);
+  font-size: 32px;
+  margin: 0;
+  color: var(--text-primary);
+}
+.subtitle {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.sectionTitle {
+  font-family: var(--font-mix);
+  font-size: 22px;
+  margin: 0;
+  color: var(--text-primary);
+}
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.errorList {
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-radius: var(--radius);
+  border-left: 4px solid var(--color-error);
+}
+.success {
+  background: var(--color-pale-success);
+  color: var(--color-navy);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+}
+.error {
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+}

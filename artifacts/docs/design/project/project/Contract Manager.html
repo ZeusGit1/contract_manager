@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html data-theme="light" lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contract Manager — McDermott</title>
+<link rel="stylesheet" href="_ds/mcdermott-design-system-b80d2057-6bb4-483d-9fe1-014d37dbaf9c/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="app.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="_ds/mcdermott-design-system-b80d2057-6bb4-483d-9fe1-014d37dbaf9c/_ds_bundle.js"></script>
+<style>
+  /* "On hold" status pill — not in the base Badge set. Pale-magenta, navy text (theme-stable). */
+  .mws-badge--hold { background: var(--color-pale-magenta); color: var(--color-navy); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="data.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="AppShell.jsx"></script>
+<script type="text/babel" src="DashboardScreen.jsx"></script>
+<script type="text/babel" src="IntakeScreen.jsx"></script>
+<script type="text/babel" src="VendorScreen.jsx"></script>
+<script type="text/babel" src="BulkUploadScreen.jsx"></script>
+<script type="text/babel" src="ContractDetailScreen.jsx"></script>
+<script type="text/babel">
+  const { useState, useEffect } = React;
+  const { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakToggle } = window;
+  const { Toast } = window.McDermottDesignSystem_b80d20;
+
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "dark": false,
+    "density": "regular",
+    "showTriage": true,
+    "showNumbers": true,
+    "showTeam": true
+  }/*EDITMODE-END*/;
+
+  const BREADCRUMBS = {
+    dashboard: ['Active contracts'],
+  };
+
+  function Placeholder({ icon, title, body }) {
+    return (
+      <div>
+        <div className="page-head"><div><h1 className="page-head__title">{title}</h1></div></div>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius)', padding: 'var(--space-8) var(--space-6)', textAlign: 'center' }}>
+          <i className={`ph ph-${icon}`} style={{ fontSize: 40, color: 'var(--icon-default)' }} aria-hidden="true"></i>
+          <h2 style={{ fontFamily: 'var(--font-mix)', fontWeight: 400, fontSize: 24, color: 'var(--text-primary)', margin: 'var(--space-4) 0 var(--space-2)' }}>{title}</h2>
+          <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>{body}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const SOON = {
+    vendors:  { icon: 'buildings', title: 'Vendors', body: "Vendor Master List — coming next in this prototype build." },
+    intake:   { icon: 'plus-circle', title: 'New contract', body: "IT Intake Form — coming next in this prototype build." },
+    bulk:     { icon: 'upload-simple', title: 'Bulk upload', body: "Bulk Upload preview & fix — coming next in this prototype build." },
+    archive:  { icon: 'archive', title: 'Archive', body: "Completed, canceled, expired, and terminated contracts live here. Outside this prototype's scope." },
+    renewals: { icon: 'calendar-check', title: 'Renewal report', body: "Upcoming expirations and renewal pipeline. Outside this prototype's scope." },
+    settings: { icon: 'gear', title: 'Settings', body: "Reminder configuration and profile settings. Outside this prototype's scope." },
+  };
+
+  function App() {
+    const [section, setSection] = useState('dashboard');
+    const [contract, setContract] = useState(null);
+    const [extraContracts, setExtraContracts] = useState([]);
+    const [flash, setFlash] = useState(null);
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    const theme = t.dark ? 'dark' : 'light';
+
+    useEffect(() => {
+      document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
+
+    useEffect(() => {
+      if (!flash) return undefined;
+      const id = setTimeout(() => setFlash(null), 4800);
+      return () => clearTimeout(id);
+    }, [flash]);
+
+    const toggleTheme = () => setTweak('dark', !t.dark);
+
+    const openContract = (c) => { setContract(c); setSection('detail'); window.scrollTo(0, 0); };
+    const goDashboard = () => { setSection('dashboard'); window.scrollTo(0, 0); };
+
+    const submitIntake = (draft) => {
+      const all = [...extraContracts, ...window.CM.CONTRACTS];
+      const maxNum = all.reduce((m, c) => Math.max(m, parseInt(c.num.split('-').pop(), 10) || 0), 0);
+      const num = 'CTR-2026-' + String(maxNum + 1).padStart(4, '0');
+      const newContract = {
+        num, title: draft.title, vendor: draft.vendor, category: 'IT',
+        stage: 'in_process', reviewer: null, team: null,
+        value: draft.value, expiresDays: null, updated: 'just now',
+        attention: true, action: 'Unassigned \u2014 needs a reviewer',
+        risk: draft.risk, requester: draft.requester,
+        description: draft.description || null,
+      };
+      setExtraContracts((xs) => [newContract, ...xs]);
+      setContract(null);
+      setSection('dashboard');
+      window.scrollTo(0, 0);
+      setFlash('Contract ' + num + ' submitted \u2014 now in process.');
+    };
+
+    const commitImport = (drafts) => {
+      const all = [...extraContracts, ...window.CM.CONTRACTS];
+      let maxNum = all.reduce((m, c) => Math.max(m, parseInt(c.num.split('-').pop(), 10) || 0), 0);
+      const created = drafts.map((d) => {
+        maxNum += 1;
+        return {
+          num: 'CTR-2026-' + String(maxNum).padStart(4, '0'),
+          title: d.title, vendor: d.vendor, category: d.category,
+          stage: 'in_process', reviewer: null, team: null,
+          value: d.value, expiresDays: null, updated: 'just now',
+          attention: true, action: 'Imported \u2014 assign a reviewer',
+          risk: d.category === 'IT' ? { type: 'Software', personalData: false, phi: false, usesAI: false } : null,
+        };
+      });
+      setExtraContracts((xs) => [...created, ...xs]);
+      setContract(null);
+      setSection('dashboard');
+      window.scrollTo(0, 0);
+      setFlash(created.length + ' contract' + (created.length === 1 ? '' : 's') + ' imported \u2014 now in process.');
+    };
+
+    const onBreadcrumb = (item, i) => {
+      if (section === 'detail' && i === 0) goDashboard();
+    };
+
+    let breadcrumb;
+    let content;
+    if (section === 'dashboard') {
+      breadcrumb = ['Active contracts'];
+      content = <window.DashboardScreen onOpenContract={openContract} onNavigate={setSection} tweaks={t} extra={extraContracts} />;
+    } else if (section === 'detail' && contract) {
+      breadcrumb = ['Active contracts', contract.title];
+      content = <window.ContractDetailScreen contract={contract} onBack={goDashboard} onNavigate={setSection} />;
+    } else if (section === 'intake') {
+      breadcrumb = ['New contract'];
+      content = <window.IntakeScreen onSubmit={submitIntake} onCancel={goDashboard} />;
+    } else if (section === 'vendors') {
+      breadcrumb = ['Vendors'];
+      content = <window.VendorScreen contracts={[...extraContracts, ...window.CM.CONTRACTS]} onOpenContract={openContract} />;
+    } else if (section === 'bulk') {
+      breadcrumb = ['Bulk upload'];
+      content = <window.BulkUploadScreen onCommit={commitImport} onCancel={goDashboard} />;
+    } else {
+      const p = SOON[section] || SOON.settings;
+      breadcrumb = [p.title];
+      content = <Placeholder icon={p.icon} title={p.title} body={p.body} />;
+    }
+
+    return (
+      <window.AppShell
+        section={section === 'detail' ? 'dashboard' : section}
+        onNavigate={setSection}
+        breadcrumb={breadcrumb}
+        onBreadcrumb={onBreadcrumb}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        navCount={extraContracts.length + window.CM.CONTRACTS.length}
+      >
+        {content}
+        <div className="toast-host" aria-live="polite">
+          {flash ? <Toast severity="success" onDismiss={() => setFlash(null)}>{flash}</Toast> : null}
+        </div>
+        <TweaksPanel title="Tweaks">
+          <TweakSection label="Layout" />
+          <TweakRadio label="Row density" value={t.density}
+                      options={['compact', 'regular', 'comfortable']}
+                      onChange={(v) => setTweak('density', v)} />
+          <TweakToggle label="Triage strip" value={t.showTriage}
+                       onChange={(v) => setTweak('showTriage', v)} />
+          <TweakSection label="Table" />
+          <TweakToggle label="Contract numbers" value={t.showNumbers}
+                       onChange={(v) => setTweak('showNumbers', v)} />
+          <TweakToggle label="Reviewer team" value={t.showTeam}
+                       onChange={(v) => setTweak('showTeam', v)} />
+          <TweakSection label="Theme" />
+          <TweakToggle label="Dark mode" value={t.dark}
+                       onChange={(v) => setTweak('dark', v)} />
+        </TweaksPanel>
+      </window.AppShell>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+/* =========================================================
+   McDermott Design System — Color tokens
+   Brand palette as CSS custom properties. Never hardcode hex.
+   Saturated colors are targeted spice, not default tools.
+   ========================================================= */
+
+:root {
+  /* --- Primary --- */
+  --color-navy: #000042;   /* primary text on light, sidebar bg, scrim tint */
+  --color-blue: #0018F2;   /* light-mode interactive accent */
+  --color-white: #FFFFFF;  /* surfaces on light theme */
+
+  /* --- Secondary --- */
+  --color-magenta: #F48DFF;
+  --color-orange: #FC561D;
+  --color-gold: #E5AC2E;
+
+  /* --- Highlights --- */
+  --color-teal: #00E2C1;   /* dark-mode interactive accent, brand highlight */
+  --color-neon: #D2FF3E;   /* use sparingly — max-attention moments only */
+
+  /* --- Pale backgrounds (theme-stable — pair with navy text) --- */
+  --color-pale-blue: #E2E8FF;
+  --color-pale-magenta: #FFEDFF;
+  --color-pale-orange: #FFE2DE;
+  --color-pale-gold: #F9E9D2;
+  --color-pale-success: #DCF1D2;
+
+  /* --- Alerts (background fills only — text on alerts must be navy) --- */
+  --color-error: #FF3333;
+  --color-success: #75D957;
+  --color-warning: #F1E53C;
+
+  /* --- Internal-only utility grays (never in client-facing UI) --- */
+  --color-navy-gray-1: #EBEBF2;
+  --color-navy-gray-2: #DEDEE5;
+  --color-navy-gray-3: #D2D2D9;
+}

@@ -1,0 +1,22 @@
+/* =========================================================
+   McDermott Design System — Motion & elevation tokens
+   ========================================================= */
+
+:root {
+  /* --- Duration --- */
+  --duration-fast: 100ms;        /* @kind other */ /* micro-interactions */
+  --duration-base: 200ms;        /* @kind other */ /* default state changes */
+  --duration-slow: 300ms;        /* @kind other */ /* surface transitions (modal, sheet) */
+  --duration-deliberate: 500ms;  /* @kind other */ /* choreographed reveal */
+
+  /* --- Easing --- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);  /* @kind other */ /* default */
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);    /* @kind other */ /* entering surfaces */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);        /* @kind other */ /* leaving surfaces */
+  --transition: var(--duration-base) var(--ease-standard);
+
+  /* --- Elevation (used sparingly — no drop shadows on everything) --- */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+}

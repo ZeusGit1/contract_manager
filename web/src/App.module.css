@@ -1,0 +1,34 @@
+.bootMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+}
+
+.signIn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  text-align: center;
+  padding: var(--space-6);
+  gap: var(--space-4);
+  color: var(--text-primary);
+}
+
+.title {
+  font-family: var(--font-mix);
+  font-size: 32px;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 540px;
+}
