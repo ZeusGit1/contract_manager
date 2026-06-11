@@ -1,0 +1,46 @@
+/* =========================================================
+   McDermott Design System — Theme tokens (semantic aliases)
+   These flip per [data-theme]. Both themes are required.
+   Set [data-theme="light"] or [data-theme="dark"] on <html>.
+   ========================================================= */
+
+:root[data-theme="light"],
+:root:not([data-theme="dark"]) {
+  --bg-page: #F7F7FC;
+  --bg-surface: #FFFFFF;
+  --bg-sidebar: var(--color-navy);
+  --text-primary: var(--color-navy);
+  --text-secondary: rgba(0, 0, 66, 0.65);
+  --accent-interactive: var(--color-blue);   /* blue in light */
+  --icon-default: var(--color-navy);
+  --border-light: #E5E5EE;
+  --border-button: #D9D9D9;
+  --focus-ring: var(--color-blue);
+  --scrim: rgba(0, 0, 66, 0.5);
+  --skeleton-base: #EBEBF2;
+  --skeleton-pulse: #DEDEE5;
+  --user-bubble-bg: var(--color-navy);
+  --user-bubble-fg: var(--color-white);
+  --btn-destructive-disabled-bg: #FFB3B3;
+  --btn-destructive-disabled-fg: rgba(0, 0, 66, 0.55);
+}
+
+:root[data-theme="dark"] {
+  --bg-page: #13134E;
+  --bg-surface: #1C1C66;
+  --bg-sidebar: #0D0D46;
+  --text-primary: var(--color-white);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent-interactive: var(--color-teal);   /* teal in dark */
+  --icon-default: var(--color-teal);
+  --border-light: #2C2C80;
+  --border-button: #4D4DA8;
+  --focus-ring: var(--color-teal);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --skeleton-base: #2C2C80;
+  --skeleton-pulse: #3D3DA3;
+  --user-bubble-bg: var(--color-teal);
+  --user-bubble-fg: var(--color-navy);
+  --btn-destructive-disabled-bg: #4A1E1E;
+  --btn-destructive-disabled-fg: rgba(255, 255, 255, 0.45);
+}

@@ -1,0 +1,39 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 560px;
+}
+.title {
+  font-family: var(--font-mix);
+  font-size: 32px;
+  margin: 0;
+  color: var(--text-primary);
+}
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: var(--space-2) 0 0;
+}
+.facts {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+.facts dt {
+  font-size: 11px;
+  letter-spacing: 10%;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-1);
+}
+.facts dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}

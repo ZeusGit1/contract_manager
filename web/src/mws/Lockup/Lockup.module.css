@@ -1,0 +1,38 @@
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.symbol {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.symbol svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 24px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.name {
+  font-family: var(--font-mix);
+  font-size: 18px;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+}

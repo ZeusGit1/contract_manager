@@ -1,0 +1,153 @@
+/* McDermott Design System tokens — derived from .claude/rules/design/_core-requirements.md.
+   Every color/space/radius the app uses traces back to one of these custom properties. */
+
+:root,
+[data-theme='light'] {
+  /* Primary */
+  --color-navy: #000042;
+  --color-blue: #0018f2;
+  --color-white: #ffffff;
+
+  /* Secondary */
+  --color-magenta: #f48dff;
+  --color-orange: #fc561d;
+  --color-gold: #e5ac2e;
+
+  /* Highlights */
+  --color-teal: #00e2c1;
+  --color-neon: #d2ff3e;
+
+  /* Pale (theme-stable; pair with navy text) */
+  --color-pale-blue: #e2e8ff;
+  --color-pale-magenta: #ffedff;
+  --color-pale-orange: #ffe2de;
+  --color-pale-gold: #f9e9d2;
+  --color-pale-success: #dcf1d2;
+
+  /* Alerts (fills only, navy text always) */
+  --color-error: #ff3333;
+  --color-success: #75d957;
+  --color-warning: #f1e53c;
+
+  /* Theme tokens */
+  --bg-page: #f7f7fc;
+  --bg-surface: #ffffff;
+  --bg-sidebar: var(--color-navy);
+  --text-primary: var(--color-navy);
+  --text-secondary: rgba(0, 0, 66, 0.65);
+  --accent-interactive: var(--color-blue);
+  --icon-default: var(--color-navy);
+  --border-light: #e5e5ee;
+  --border-button: #d9d9d9;
+  --focus-ring: var(--color-blue);
+  --scrim: rgba(0, 0, 66, 0.5);
+
+  /* Typography */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mix: Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Radius */
+  --radius: 2px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --duration-fast: 100ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --duration-deliberate: 500ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Controls */
+  --control-h: 40px;
+  --control-h-sm: 32px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 66, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 66, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 66, 0.14);
+}
+
+[data-theme='dark'] {
+  --bg-page: #13134e;
+  --bg-surface: #1c1c66;
+  --bg-sidebar: #0d0d46;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent-interactive: var(--color-teal);
+  --icon-default: var(--color-teal);
+  --border-light: #2c2c80;
+  --border-button: #4d4da8;
+  --focus-ring: var(--color-teal);
+  --scrim: rgba(0, 0, 0, 0.6);
+}
+
+html {
+  overflow-x: clip;
+  max-width: 100vw;
+  scroll-padding-top: 80px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  max-width: 100vw;
+  min-height: 100dvh;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: var(--accent-interactive);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
