@@ -27,6 +27,7 @@ export interface ContractRowDto {
   vendorName: string;
   vendorId: number;
   assignedReviewerName: string | null;
+  assignedReviewerTeam: string | null;
   assignedReviewerUserId: string | null;
   totalCostUsd: number | null;
   termEndDate: string | null;
@@ -34,6 +35,15 @@ export interface ContractRowDto {
   nextActionDueAt: string | null;
   needsAttention: boolean;
   attentionReason: string | null;
+}
+
+export interface TriageCountsDto {
+  all: number;
+  action: number;
+  review: number;
+  sign: number;
+  expiring: number;
+  closed: number;
 }
 
 export interface ContractDetailDto {

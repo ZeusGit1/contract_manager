@@ -33,36 +33,97 @@
 }
 
 .triageStrip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: var(--space-3);
 }
 
 .chip {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
   font-family: var(--font-sans);
-  font-size: 13px;
   color: var(--text-primary);
   cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
 }
 
 .chip:hover {
-  color: var(--accent-interactive);
   border-color: var(--accent-interactive);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .chipActive {
-  background: var(--color-pale-blue);
-  color: var(--color-navy);
   border-color: var(--accent-interactive);
-  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--accent-interactive);
+}
+
+.chipAttention .chipCount {
+  color: var(--color-navy);
+}
+
+.chipTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chipCount {
+  font-family: var(--font-mix);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.chipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+}
+
+.dotAction {
+  background: var(--color-orange);
+}
+
+.dotReview {
+  background: var(--color-blue);
+}
+
+.dotSign {
+  background: var(--color-teal);
+}
+
+.dotExpiring {
+  background: var(--color-gold);
+}
+
+.dotClosed {
+  background: var(--text-secondary);
+}
+
+.dotNeutral {
+  background: transparent;
 }
 
 .chipLabel {
-  white-space: nowrap;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .toolbar {
@@ -105,7 +166,7 @@
 
 .table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
@@ -187,4 +248,81 @@
   text-align: center;
   color: var(--text-secondary);
   padding: var(--space-6);
+}
+
+/* Sortable column header */
+.sortButton {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sortButtonRight {
+  flex-direction: row-reverse;
+}
+
+.sortButton:hover {
+  color: var(--accent-interactive);
+}
+
+.sortButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sortIcon {
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+/* Category cell — icon + label */
+.categoryCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.categoryIcon {
+  font-size: 14px;
+  color: var(--icon-default);
+}
+
+/* Reviewer cell — name with team subline */
+.reviewerCell {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.reviewerName {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.reviewerTeam {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+/* Expires column — warning when ≤ 14 days */
+.expiringSoon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-navy);
+  font-weight: 600;
+}
+
+.expiringSoon i {
+  color: var(--color-orange);
+  font-size: 14px;
 }

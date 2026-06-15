@@ -5,6 +5,7 @@ export const queryKeys = {
   contracts: {
     all: ['contracts'] as const,
     list: (params: Record<string, unknown>) => ['contracts', 'list', params] as const,
+    triageCounts: () => ['contracts', 'triage-counts'] as const,
     archive: (params: Record<string, unknown>) => ['contracts', 'archive', params] as const,
     renewals: (params: Record<string, unknown>) => ['contracts', 'renewals', params] as const,
     detail: (id: number) => ['contracts', 'detail', id] as const,

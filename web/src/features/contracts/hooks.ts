@@ -9,6 +9,7 @@ import type {
   CommentDto,
   NoteDto,
   PagedResult,
+  TriageCountsDto,
 } from '@/types/api';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -17,6 +18,8 @@ interface ContractListParams {
   triage?: string;
   category?: string;
   query?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }
@@ -36,6 +39,13 @@ export function useContractList(params: ContractListParams) {
   return useQuery<PagedResult<ContractRowDto>>({
     queryKey: queryKeys.contracts.list(finalParams),
     queryFn: () => apiJson<PagedResult<ContractRowDto>>(`/api/contracts${buildQuery(finalParams)}`),
+  });
+}
+
+export function useTriageCounts() {
+  return useQuery<TriageCountsDto>({
+    queryKey: queryKeys.contracts.triageCounts(),
+    queryFn: () => apiJson<TriageCountsDto>('/api/contracts/triage-counts'),
   });
 }
 
