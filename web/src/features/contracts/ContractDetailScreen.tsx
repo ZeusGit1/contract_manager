@@ -5,11 +5,16 @@ import { Button } from '@/mws/Button';
 import {
   useAddComment,
   useContractActivity,
+  useContractAssignments,
   useContractComments,
   useContractDetail,
   useContractNotes,
   useUpdateStatus,
 } from './hooks';
+import { ApprovalsPanel } from './components/ApprovalsPanel';
+import { ContractDetailRail } from './components/ContractDetailRail';
+import { StatusBanner } from './components/StatusBanner';
+import { StatusChanger } from './components/StatusChanger';
 import { formatFullDate, formatUsd } from '@/lib/formatters';
 import { statusInfo } from '@/lib/statusMap';
 import { FORWARD_STATUS_ORDER } from '@/types/contract';
@@ -18,6 +23,9 @@ import styles from './ContractDetailScreen.module.css';
 
 type Tab = 'details' | 'documents' | 'comments' | 'notes' | 'activity';
 
+// Page component composing several sub-components — exceeds 200 lines because it owns the
+// header, banner, stepper, status changer, tab nav, right rail, and tab-panel renderers.
+// Each piece is isolated; growth happens in the dedicated sub-components, not here.
 export function ContractDetailScreen() {
   const { contractId } = useParams<{ contractId: string }>();
   const numericId = Number.parseInt(contractId ?? '', 10);
@@ -25,6 +33,7 @@ export function ContractDetailScreen() {
   const commentsQuery = useContractComments(numericId);
   const notesQuery = useContractNotes(numericId);
   const activityQuery = useContractActivity(numericId);
+  const assignmentsQuery = useContractAssignments(numericId);
   const updateStatus = useUpdateStatus();
   const addComment = useAddComment(numericId);
   const [tab, setTab] = useState<Tab>('details');
@@ -42,10 +51,11 @@ export function ContractDetailScreen() {
   const contract = detailQuery.data;
   const stage = statusInfo(contract.status);
   const currentIndex = FORWARD_STATUS_ORDER.indexOf(contract.status as ContractStatus);
-  const nextStatus =
-    currentIndex >= 0 && currentIndex < FORWARD_STATUS_ORDER.length - 1
-      ? FORWARD_STATUS_ORDER[currentIndex + 1]
-      : null;
+  const isClosed =
+    contract.status === 'Completed' ||
+    contract.status === 'Canceled' ||
+    contract.status === 'Expired' ||
+    contract.status === 'Terminated';
 
   return (
     <div className={styles.page}>
@@ -69,32 +79,42 @@ export function ContractDetailScreen() {
             <Badge status={stage.badge}>{stage.label}</Badge>
           </div>
         </div>
-        {contract.canEdit && nextStatus ? (
-          <Button
-            icon="arrow-right"
-            disabled={updateStatus.isPending}
-            onClick={() => updateStatus.mutate({ contractId: numericId, newStatus: nextStatus })}
-          >
-            {nextStatus === 'Completed'
-              ? 'Mark completed'
-              : `Advance to ${statusInfo(nextStatus).label}`}
-          </Button>
+        {contract.canEdit ? (
+          <StatusChanger
+            status={contract.status as ContractStatus}
+            isPending={updateStatus.isPending}
+            onChange={(newStatus) =>
+              updateStatus.mutate({ contractId: numericId, newStatus, note: null })
+            }
+          />
         ) : null}
       </header>
+
+      <StatusBanner
+        status={contract.status as ContractStatus}
+        nextActionDueAt={contract.nextActionDueAt}
+        attentionReason={null}
+      />
 
       <div className={styles.workflow}>
         <p className={styles.workflowEyebrow}>Review workflow</p>
         <ol className={styles.stepper} aria-label="Contract lifecycle">
           {FORWARD_STATUS_ORDER.map((step, index) => {
             const stateName =
-              index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'todo';
+              index < currentIndex || (isClosed && step !== 'Completed' && index <= currentIndex)
+                ? 'done'
+                : index === currentIndex
+                  ? 'current'
+                  : 'todo';
             return (
               <li
                 key={step}
                 className={`${styles.step} ${styles[stateName as 'done' | 'current' | 'todo']}`}
                 aria-current={stateName === 'current' ? 'step' : undefined}
               >
-                <span className={styles.stepCircle}>{index + 1}</span>
+                <span className={styles.stepCircle} aria-hidden="true">
+                  {stateName === 'done' ? <i className="ph ph-check" /> : index + 1}
+                </span>
                 <span className={styles.stepLabel}>{statusInfo(step).label}</span>
               </li>
             );
@@ -102,49 +122,61 @@ export function ContractDetailScreen() {
         </ol>
       </div>
 
-      <nav className={styles.tabs} role="tablist" aria-label="Contract sections">
-        {(['details', 'documents', 'comments', 'notes', 'activity'] as Tab[]).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={`${styles.tab} ${tab === id ? styles.tabActive : ''}`}
-            onClick={() => setTab(id)}
-          >
-            {tabLabel(id, contract)}
-          </button>
-        ))}
-      </nav>
+      <div className={styles.body}>
+        <div className={styles.main}>
+          <nav className={styles.tabs} role="tablist" aria-label="Contract sections">
+            {(['details', 'documents', 'comments', 'notes', 'activity'] as Tab[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                className={`${styles.tab} ${tab === id ? styles.tabActive : ''}`}
+                onClick={() => setTab(id)}
+              >
+                {tabLabel(id, contract)}
+              </button>
+            ))}
+          </nav>
 
-      <section className={styles.panel} role="tabpanel">
-        {tab === 'details' ? (
-          <DetailsTab contract={contract} />
-        ) : tab === 'documents' ? (
-          <p className={styles.muted}>Document upload arrives in a follow-up build phase.</p>
-        ) : tab === 'comments' ? (
-          <CommentsTab
-            comments={commentsQuery.data ?? []}
-            isLoading={commentsQuery.isLoading}
-            draft={commentDraft}
-            onDraftChange={setCommentDraft}
-            onSubmit={() => {
-              if (commentDraft.trim() === '') return;
-              addComment.mutate(
-                { text: commentDraft.trim(), isInternalOnly: false },
-                {
-                  onSuccess: () => setCommentDraft(''),
-                },
-              );
-            }}
-            submitting={addComment.isPending}
-          />
-        ) : tab === 'notes' ? (
-          <NotesTab notes={notesQuery.data ?? []} isLoading={notesQuery.isLoading} />
-        ) : (
-          <ActivityTab activity={activityQuery.data ?? []} isLoading={activityQuery.isLoading} />
-        )}
-      </section>
+          <section className={styles.panel} role="tabpanel">
+            {tab === 'details' ? (
+              <div className={styles.detailsStack}>
+                <ApprovalsPanel
+                  status={contract.status as ContractStatus}
+                  assignments={assignmentsQuery.data ?? []}
+                />
+                <DetailsTab contract={contract} />
+              </div>
+            ) : tab === 'documents' ? (
+              <p className={styles.muted}>Document upload arrives in a follow-up build phase.</p>
+            ) : tab === 'comments' ? (
+              <CommentsTab
+                comments={commentsQuery.data ?? []}
+                isLoading={commentsQuery.isLoading}
+                draft={commentDraft}
+                onDraftChange={setCommentDraft}
+                onSubmit={() => {
+                  if (commentDraft.trim() === '') return;
+                  addComment.mutate(
+                    { text: commentDraft.trim(), isInternalOnly: false },
+                    { onSuccess: () => setCommentDraft('') },
+                  );
+                }}
+                submitting={addComment.isPending}
+              />
+            ) : tab === 'notes' ? (
+              <NotesTab notes={notesQuery.data ?? []} isLoading={notesQuery.isLoading} />
+            ) : (
+              <ActivityTab
+                activity={activityQuery.data ?? []}
+                isLoading={activityQuery.isLoading}
+              />
+            )}
+          </section>
+        </div>
+        <ContractDetailRail contract={contract} />
+      </div>
     </div>
   );
 }
@@ -241,29 +273,45 @@ function CommentsTab({
           </article>
         ))
       )}
-      <form
-        className={styles.commentForm}
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <label htmlFor="comment-draft" className="visually-hidden">
-          Add a comment
-        </label>
-        <textarea
-          id="comment-draft"
-          value={draft}
-          onChange={(event) => onDraftChange(event.target.value)}
-          placeholder="Add an internal note for the review team"
-          rows={3}
-          className={styles.commentInput}
-        />
-        <Button type="submit" icon="paper-plane-tilt" disabled={submitting || draft.trim() === ''}>
-          Add comment
-        </Button>
-      </form>
+      <CommentForm
+        draft={draft}
+        onDraftChange={onDraftChange}
+        onSubmit={onSubmit}
+        submitting={submitting}
+      />
     </div>
+  );
+}
+
+function CommentForm({
+  draft,
+  onDraftChange,
+  onSubmit,
+  submitting,
+}: Omit<CommentsTabProps, 'comments' | 'isLoading'>) {
+  return (
+    <form
+      className={styles.commentForm}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <label htmlFor="comment-draft" className="visually-hidden">
+        Add a comment
+      </label>
+      <textarea
+        id="comment-draft"
+        value={draft}
+        onChange={(event) => onDraftChange(event.target.value)}
+        placeholder="Add an internal note for the review team"
+        rows={3}
+        className={styles.commentInput}
+      />
+      <Button type="submit" icon="paper-plane-tilt" disabled={submitting || draft.trim() === ''}>
+        Add comment
+      </Button>
+    </form>
   );
 }
 

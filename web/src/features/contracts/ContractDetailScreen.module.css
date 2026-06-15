@@ -124,6 +124,11 @@
   border-color: var(--accent-interactive);
 }
 
+.step.done .stepCircle i {
+  font-size: 16px;
+  line-height: 1;
+}
+
 .step.current .stepLabel,
 .step.done .stepLabel {
   color: var(--text-primary);
@@ -131,6 +136,32 @@
 
 .stepLabel {
   white-space: nowrap;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 280px);
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+@media (max-width: 1024px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.detailsStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 .tabs {
