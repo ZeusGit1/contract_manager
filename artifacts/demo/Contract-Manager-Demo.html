@@ -1,0 +1,2308 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contract Manager — Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <style>
+      /* ========================================================================
+         McDermott design tokens
+         ======================================================================== */
+      :root,
+      [data-theme='light'] {
+        --color-navy: #000042;
+        --color-blue: #0018f2;
+        --color-white: #ffffff;
+        --color-magenta: #f48dff;
+        --color-orange: #fc561d;
+        --color-gold: #e5ac2e;
+        --color-teal: #00e2c1;
+        --color-pale-blue: #e2e8ff;
+        --color-pale-magenta: #ffedff;
+        --color-pale-orange: #ffe2de;
+        --color-pale-gold: #f9e9d2;
+        --color-pale-success: #dcf1d2;
+        --color-error: #ff3333;
+        --color-success: #75d957;
+        --color-warning: #f1e53c;
+        --bg-page: #f7f7fc;
+        --bg-surface: #ffffff;
+        --bg-sidebar: var(--color-navy);
+        --text-primary: var(--color-navy);
+        --text-secondary: rgba(0, 0, 66, 0.65);
+        --accent-interactive: var(--color-blue);
+        --icon-default: var(--color-navy);
+        --border-light: #e5e5ee;
+        --border-button: #d9d9d9;
+        --focus-ring: var(--color-blue);
+        --scrim: rgba(0, 0, 66, 0.5);
+        --font-sans:
+          ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+          sans-serif;
+        --font-mix: Georgia, 'Times New Roman', serif;
+        --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 24px;
+        --space-6: 32px;
+        --space-7: 48px;
+        --space-8: 64px;
+        --space-9: 96px;
+        --radius: 2px;
+        --radius-pill: 999px;
+        --control-h: 40px;
+        --control-h-sm: 32px;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 66, 0.06);
+        --shadow-md: 0 4px 12px rgba(0, 0, 66, 0.08);
+        --shadow-lg: 0 12px 32px rgba(0, 0, 66, 0.12);
+        --sidebar-w: 260px;
+      }
+      [data-theme='dark'] {
+        --bg-page: #13134e;
+        --bg-surface: #1c1c66;
+        --bg-sidebar: #0d0d46;
+        --text-primary: #ffffff;
+        --text-secondary: rgba(255, 255, 255, 0.7);
+        --accent-interactive: var(--color-teal);
+        --icon-default: var(--color-teal);
+        --border-light: #2c2c80;
+        --border-button: #4d4da8;
+        --focus-ring: var(--color-teal);
+        --scrim: rgba(0, 0, 0, 0.6);
+      }
+      html { overflow-x: clip; max-width: 100vw; scroll-padding-top: 80px; }
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0; font-family: var(--font-sans); background: var(--bg-page);
+        color: var(--text-primary); font-size: 14px; line-height: 1.5;
+        max-width: 100vw; min-height: 100dvh;
+      }
+      h1, h2, h3, h4 { font-family: var(--font-mix); font-weight: 400; margin: 0; line-height: 1.15; }
+      a { color: var(--accent-interactive); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      button { font-family: inherit; font-size: inherit; cursor: pointer; }
+      :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+      .visually-hidden {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      }
+      .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100dvh; }
+
+      /* =================== Sidebar =================== */
+      .sidebar {
+        background: var(--bg-sidebar); color: var(--color-white);
+        padding: var(--space-5) 0; display: flex; flex-direction: column;
+        position: sticky; top: 0; height: 100dvh; overflow-y: auto;
+      }
+      .lockup {
+        display: inline-flex; align-items: center; gap: var(--space-3);
+        padding: 0 var(--space-5); margin-bottom: var(--space-6); min-width: 0;
+      }
+      .lockup__symbol { width: 32px; height: 32px; flex-shrink: 0; }
+      .lockup__symbol svg { width: 100%; height: 100%; fill: currentColor; }
+      .lockup__divider {
+        width: 1px; align-self: stretch; min-height: 24px; flex-shrink: 0;
+        background: color-mix(in srgb, currentColor 22%, transparent);
+      }
+      .lockup__name { font-family: var(--font-mix); font-size: 18px; line-height: 1.15; }
+      .nav-section {
+        padding: var(--space-2) var(--space-5); font-size: 11px;
+        letter-spacing: 0.1em; text-transform: uppercase;
+        color: color-mix(in srgb, currentColor 50%, transparent); margin-top: var(--space-4);
+      }
+      .nav { list-style: none; margin: 0; padding: 0; flex: 1; }
+      .nav-item {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-3) var(--space-5); color: var(--color-white);
+        font-family: var(--font-mix); font-size: 16px;
+        border-left: 3px solid transparent; text-decoration: none;
+      }
+      .nav-item i { font-size: 20px; opacity: 0.85; }
+      .nav-item:hover {
+        background: color-mix(in srgb, currentColor 8%, transparent); text-decoration: none;
+      }
+      .nav-item.active {
+        background: color-mix(in srgb, currentColor 12%, transparent);
+        border-left-color: var(--color-teal); font-weight: 600;
+      }
+      .pinned {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-4) var(--space-5);
+        border-top: 1px solid rgba(255, 255, 255, 0.08); margin-top: auto;
+      }
+      .avatar {
+        width: 36px; height: 36px; border-radius: var(--radius-pill);
+        background: var(--color-teal); color: var(--color-navy);
+        font-weight: 600; display: grid; place-items: center; flex-shrink: 0;
+      }
+      .avatar--sm { width: 28px; height: 28px; font-size: 12px; }
+      .user-name { font-size: 13px; }
+      .user-role {
+        font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;
+      }
+
+      /* =================== Top bar + main =================== */
+      .body { display: flex; flex-direction: column; min-width: 0; }
+      .topbar {
+        position: sticky; top: 0; z-index: 10; height: 56px; background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-light);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 var(--space-7);
+      }
+      .topbar-page { font-family: var(--font-mix); font-size: 18px; }
+      .topbar-right { display: flex; align-items: center; gap: var(--space-2); }
+      .icon-btn {
+        width: 36px; height: 36px; background: transparent; border: 0;
+        border-radius: var(--radius); color: var(--icon-default);
+        display: grid; place-items: center;
+      }
+      .icon-btn i { font-size: 20px; }
+      .icon-btn:hover { background: var(--border-light); }
+      main {
+        padding: var(--space-6) var(--space-7); max-width: 1280px;
+        width: 100%; margin: 0 auto;
+      }
+
+      /* =================== Buttons + badges =================== */
+      .btn {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        height: var(--control-h); padding: 0 var(--space-5);
+        background: var(--accent-interactive); color: var(--color-white);
+        border: 0; border-radius: var(--radius); font-size: 13px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+        min-width: 140px; justify-content: center; text-decoration: none;
+      }
+      [data-theme='dark'] .btn { color: var(--color-navy); }
+      .btn:hover { filter: brightness(1.1); text-decoration: none; }
+      .btn:disabled { opacity: 0.4; pointer-events: none; }
+      .btn--secondary {
+        background: transparent; color: var(--text-primary); border: 1px solid var(--border-button);
+      }
+      .btn--secondary:hover {
+        border-color: var(--accent-interactive); color: var(--accent-interactive); filter: none;
+      }
+      .btn--sm { height: var(--control-h-sm); padding: 0 var(--space-3); font-size: 11px; min-width: 0; }
+      .btn-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+      .badge {
+        display: inline-flex; align-items: center; gap: var(--space-1);
+        padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill);
+        font-size: 11px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--color-navy); white-space: nowrap;
+      }
+      .badge--draft { background: transparent; border: 1px solid var(--border-light); color: var(--text-primary); }
+      .badge--info { background: var(--color-pale-blue); }
+      .badge--pending { background: var(--color-pale-gold); }
+      .badge--live { background: var(--color-pale-success); }
+      .badge--failed { background: var(--color-pale-orange); }
+      .badge--hold { background: var(--color-pale-magenta); }
+      .badge--archived { background: transparent; border: 1px solid var(--border-light); color: var(--text-secondary); }
+
+      /* =================== Page head =================== */
+      .page-head {
+        display: flex; justify-content: space-between; align-items: flex-end;
+        margin-bottom: var(--space-5); gap: var(--space-4); flex-wrap: wrap;
+      }
+      .page-head h1 { font-size: 32px; }
+      .page-head .subtitle { color: var(--text-secondary); margin-top: var(--space-2); }
+      .page-head__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+      /* =================== Triage strip =================== */
+      .triage {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+        gap: var(--space-3); margin-bottom: var(--space-4);
+      }
+      .triage__chip {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-3) var(--space-4);
+        text-align: left; cursor: pointer; min-width: 0;
+        display: flex; flex-direction: column; gap: var(--space-2);
+        color: var(--text-primary); font-family: inherit;
+      }
+      .triage__chip:hover { border-color: var(--accent-interactive); }
+      .triage__chip.is-active {
+        border-color: var(--accent-interactive);
+        box-shadow: inset 0 0 0 1px var(--accent-interactive);
+      }
+      .triage__top { display: flex; align-items: center; justify-content: space-between; }
+      .triage__count { font-family: var(--font-mix); font-size: 28px; line-height: 1; }
+      .triage__dot {
+        width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--text-secondary);
+      }
+      .triage__dot--action { background: var(--color-orange); }
+      .triage__dot--review { background: var(--color-blue); }
+      .triage__dot--sign { background: var(--color-teal); }
+      .triage__dot--expiring { background: var(--color-gold); }
+      .triage__dot--closed { background: var(--text-secondary); }
+      .triage__label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--text-secondary); font-weight: 600;
+      }
+      .triage__chip.attention .triage__count { color: var(--color-navy); }
+
+      /* =================== Toolbar + table =================== */
+      .table-toolbar {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: var(--space-3); margin-bottom: var(--space-3); flex-wrap: wrap;
+      }
+      .table-search {
+        position: relative; display: flex; align-items: center; flex: 1;
+        max-width: 420px; min-width: 220px;
+      }
+      .table-search i {
+        position: absolute; left: var(--space-3); top: 50%;
+        transform: translateY(-50%); color: var(--text-secondary); font-size: 16px;
+      }
+      .table-search input {
+        height: var(--control-h-sm); padding: 0 var(--space-3) 0 36px;
+        width: 100%; min-width: 0; background: var(--bg-surface);
+        border: 1px solid var(--border-light); border-radius: var(--radius);
+        font: inherit; color: var(--text-primary);
+      }
+      .table-meta { font-size: 12px; color: var(--text-secondary); }
+
+      .table-shell {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); overflow-x: auto;
+      }
+      table.data-table { width: 100%; min-width: 980px; border-collapse: collapse; }
+      table.data-table th {
+        text-align: left; font-size: 11px; text-transform: uppercase;
+        letter-spacing: 0.05em; font-weight: 600; color: var(--text-secondary);
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-light); background: var(--bg-surface);
+      }
+      table.data-table th.sortable { cursor: pointer; user-select: none; }
+      table.data-table th.sortable:hover { color: var(--accent-interactive); }
+      .th-inner { display: inline-flex; align-items: center; gap: var(--space-1); }
+      .th-inner i { font-size: 14px; opacity: 0.6; }
+      table.data-table td {
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border-light); font-size: 14px;
+      }
+      table.data-table tbody tr { cursor: pointer; }
+      table.data-table tbody tr:hover {
+        background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
+      }
+      table.data-table td.numeric { text-align: right; font-family: var(--font-mono); }
+      .cell-name { display: flex; flex-direction: column; }
+      .cell-num {
+        font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono);
+      }
+      .cell-mono { font-family: var(--font-mono); }
+      .cell-date { color: var(--text-secondary); font-size: 13px; }
+      .flag-slot { width: 16px; display: inline-block; }
+      .flag-dot {
+        display: inline-block; width: 8px; height: 8px; border-radius: var(--radius-pill);
+        background: var(--color-orange);
+      }
+      .col-flag { width: 36px; }
+      .cat { display: inline-flex; align-items: center; gap: var(--space-1); }
+      .cat i { font-size: 14px; color: var(--icon-default); }
+      .reviewer__txt { display: flex; flex-direction: column; }
+      .reviewer__name { font-size: 14px; }
+      .reviewer__team {
+        font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;
+      }
+      .reviewer--none { color: var(--text-secondary); font-style: italic; }
+      .due { display: inline-flex; align-items: center; gap: var(--space-1); }
+      .due--soon { color: var(--color-navy); font-weight: 600; }
+      .due--soon i { color: var(--color-orange); font-size: 14px; }
+      .empty-row td {
+        text-align: center; padding: var(--space-7); color: var(--text-secondary);
+      }
+
+      /* =================== Detail page =================== */
+      .back-link {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        margin-bottom: var(--space-3); color: var(--text-secondary);
+        font-size: 13px; background: transparent; border: 0; padding: 0;
+      }
+      .back-link:hover { color: var(--accent-interactive); }
+      .detail-eyebrow {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        font-size: 12px; color: var(--text-secondary); margin-bottom: var(--space-1);
+      }
+      .detail-dot { color: var(--text-secondary); opacity: 0.5; }
+      .detail-sub {
+        display: inline-flex; align-items: center; gap: var(--space-2);
+        flex-wrap: wrap; margin-top: var(--space-3); color: var(--text-secondary);
+      }
+      .detail-sub .badge { margin-left: var(--space-2); }
+      .vendor-link {
+        background: transparent; border: 0; padding: 0;
+        color: var(--accent-interactive); display: inline-flex;
+        align-items: center; gap: 4px; font: inherit; cursor: pointer;
+      }
+      .vendor-link:hover { text-decoration: underline; }
+      .advance-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+      .advance-hint {
+        font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;
+      }
+
+      /* Stepper */
+      .workflow {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-4);
+      }
+      .workflow__eyebrow {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-secondary); margin: 0 0 var(--space-4); font-weight: 600;
+      }
+      .stepper { display: flex; align-items: flex-start; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+      .stepper--muted { opacity: 0.5; }
+      .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); position: relative; min-width: 70px; }
+      .step__circle {
+        width: 28px; height: 28px; border-radius: var(--radius-pill);
+        border: 1.5px solid var(--border-light); background: transparent;
+        display: grid; place-items: center; font-family: var(--font-sans);
+        font-size: 12px; font-weight: 600; color: var(--text-secondary);
+        flex-shrink: 0; z-index: 2; background: var(--bg-surface);
+      }
+      .step.current .step__circle, .step.done .step__circle {
+        background: var(--accent-interactive); color: var(--color-white);
+        border-color: var(--accent-interactive);
+      }
+      [data-theme='dark'] .step.current .step__circle,
+      [data-theme='dark'] .step.done .step__circle { color: var(--color-navy); }
+      .step:not(:last-child)::after {
+        content: ''; position: absolute; top: 14px; left: 50%; right: -50%;
+        height: 1px; background: var(--border-light); z-index: 1;
+      }
+      .step.done:not(:last-child)::after { background: var(--accent-interactive); height: 2px; top: 13px; }
+      .step__label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--text-secondary); text-align: center;
+      }
+      .step.current .step__label { color: var(--text-primary); font-weight: 600; }
+      .step.done .step__label { color: var(--text-primary); }
+      .workflow-flag {
+        margin-top: var(--space-4); padding: var(--space-3) var(--space-4);
+        background: var(--color-pale-magenta); color: var(--color-navy);
+        border-radius: var(--radius); display: flex; align-items: center;
+        gap: var(--space-2); font-size: 13px;
+      }
+      .workflow-flag--closed { background: var(--color-pale-orange); }
+      .workflow-flag__label { font-weight: 600; }
+
+      /* Alert */
+      .alert {
+        margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius); display: flex; align-items: flex-start;
+        gap: var(--space-3); color: var(--color-navy);
+      }
+      .alert--info { background: var(--color-pale-blue); border-left: 4px solid var(--color-blue); }
+      .alert--warning { background: var(--color-pale-gold); border-left: 4px solid var(--color-gold); }
+      .alert--error { background: var(--color-pale-orange); border-left: 4px solid var(--color-error); }
+      .alert i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+      .alert__title { font-weight: 600; }
+      .alert__body { font-size: 13px; }
+
+      /* Approvals */
+      .approvals {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-5); margin-bottom: var(--space-4);
+      }
+      .approvals__head {
+        display: flex; justify-content: space-between; align-items: baseline;
+        margin-bottom: var(--space-4); gap: var(--space-3); flex-wrap: wrap;
+      }
+      .approvals__title { font-size: 16px; font-weight: 600; margin: 0; }
+      .approvals__progress {
+        display: inline-flex; align-items: center; gap: var(--space-1);
+        font-size: 12px; color: var(--text-secondary);
+      }
+      .approvals__progress i { color: var(--color-success); font-size: 16px; }
+      .approval {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-3) 0; border-top: 1px solid var(--border-light);
+        flex-wrap: wrap;
+      }
+      .approval__team { font-weight: 600; min-width: 80px; }
+      .approval__meta { font-size: 12px; color: var(--text-secondary); }
+      .approval__spacer { flex: 1; }
+      .approval__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+      /* Detail grid */
+      .detail-grid {
+        display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 320px);
+        gap: var(--space-5);
+      }
+      @media (max-width: 1024px) {
+        .detail-grid { grid-template-columns: 1fr; }
+      }
+
+      /* Tabs */
+      .tabs {
+        display: flex; gap: var(--space-5); border-bottom: 1px solid var(--border-light);
+        margin: var(--space-5) 0 var(--space-4); overflow-x: auto;
+      }
+      .tab {
+        background: transparent; border: 0; border-bottom: 2px solid transparent;
+        padding: var(--space-3) 0; color: var(--text-secondary); font-size: 13px;
+        text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+        white-space: nowrap; flex-shrink: 0;
+      }
+      .tab.active { color: var(--text-primary); border-bottom-color: var(--accent-interactive); }
+      .tab:hover { color: var(--accent-interactive); }
+
+      /* Details fields */
+      .def-grid {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4) var(--space-5);
+      }
+      @media (max-width: 640px) { .def-grid { grid-template-columns: 1fr; } }
+      .def--full { grid-column: 1 / -1; }
+      .def__label {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--text-secondary); font-weight: 600; margin-bottom: var(--space-1);
+      }
+      .def__value { font-size: 14px; word-break: break-word; }
+      .def__desc { margin: 0; font-size: 14px; color: var(--text-primary); }
+      .risk-row {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4);
+        padding: var(--space-3) 0;
+      }
+      @media (max-width: 640px) { .risk-row { grid-template-columns: 1fr; } }
+      .yn {
+        display: inline-flex; align-items: center; gap: var(--space-1);
+        font-size: 13px; font-weight: 600;
+      }
+      .yn--yes { color: var(--color-navy); }
+      .yn--yes i { color: var(--color-orange); }
+      .yn--no { color: var(--text-secondary); }
+
+      /* Documents */
+      .section-bar {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: var(--space-3); gap: var(--space-3); flex-wrap: wrap;
+      }
+      .section-bar h2 { font-size: 18px; }
+      .doc-list { display: flex; flex-direction: column; gap: var(--space-2); }
+      .doc {
+        display: flex; align-items: center; gap: var(--space-3);
+        padding: var(--space-3); background: var(--bg-page);
+        border-radius: var(--radius);
+      }
+      .doc__icon { font-size: 20px; color: var(--icon-default); }
+      .doc__main { flex: 1; min-width: 0; }
+      .doc__name { font-weight: 600; }
+      .doc__meta { font-size: 12px; color: var(--text-secondary); }
+      .doc__ver {
+        font-size: 11px; padding: var(--space-1) var(--space-2);
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); font-family: var(--font-mono);
+      }
+
+      /* Comments */
+      .comment { display: flex; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border-light); }
+      .comment:last-child { border-bottom: 0; }
+      .comment__body { flex: 1; min-width: 0; }
+      .comment__head { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+      .comment__author { font-weight: 600; }
+      .comment__role {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+        color: var(--text-secondary);
+      }
+      .comment__when { font-size: 12px; color: var(--text-secondary); margin-left: auto; }
+      .comment__text { margin: var(--space-1) 0 0; font-size: 14px; }
+      .comment-form { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+      .comment-form textarea {
+        width: 100%; min-height: 80px; padding: var(--space-3);
+        border: 1px solid var(--border-light); border-radius: var(--radius);
+        font: inherit; color: var(--text-primary); background: var(--bg-surface);
+        resize: vertical;
+      }
+
+      /* Notes */
+      .notes-list { display: flex; flex-direction: column; gap: var(--space-3); }
+      .note {
+        padding: var(--space-3) var(--space-4); background: var(--bg-page);
+        border-left: 4px solid var(--accent-interactive); border-radius: var(--radius);
+      }
+      .note__head {
+        display: flex; align-items: center; gap: var(--space-3);
+        margin-bottom: var(--space-2); flex-wrap: wrap;
+      }
+      .note-type {
+        display: inline-flex; align-items: center; gap: var(--space-1);
+        font-size: 11px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.05em; padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-pill); background: var(--color-pale-blue);
+        color: var(--color-navy);
+      }
+      .note-type--call { background: var(--color-pale-magenta); }
+      .note-type--email { background: var(--color-pale-gold); }
+      .note-type--note { background: transparent; border: 1px solid var(--border-light); color: var(--text-primary); }
+      .note__date { font-size: 12px; color: var(--text-secondary); }
+      .note__people {
+        font-size: 12px; color: var(--text-secondary);
+        display: inline-flex; align-items: center; gap: var(--space-1);
+      }
+      .note__text { margin: 0; font-size: 14px; }
+      .note-form {
+        margin-top: var(--space-5); padding-top: var(--space-4);
+        border-top: 1px solid var(--border-light);
+        display: flex; flex-direction: column; gap: var(--space-3);
+      }
+      .note-form__row {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2);
+      }
+      @media (max-width: 640px) { .note-form__row { grid-template-columns: 1fr; } }
+      .note-form input, .note-form select, .note-form textarea {
+        height: var(--control-h-sm); padding: 0 var(--space-3);
+        border: 1px solid var(--border-light); border-radius: var(--radius);
+        font: inherit; color: var(--text-primary); background: var(--bg-surface);
+      }
+      .note-form textarea { height: auto; min-height: 80px; padding: var(--space-3); resize: vertical; }
+      .notes-empty {
+        text-align: center; padding: var(--space-5); color: var(--text-secondary);
+      }
+
+      /* Activity timeline */
+      .timeline { display: flex; flex-direction: column; gap: var(--space-3); }
+      .tl { display: flex; gap: var(--space-3); }
+      .tl__icon {
+        width: 32px; height: 32px; border-radius: var(--radius-pill);
+        background: var(--color-pale-blue); color: var(--color-navy);
+        display: grid; place-items: center; flex-shrink: 0;
+      }
+      .tl__main { flex: 1; }
+      .tl__text { font-size: 14px; }
+      .tl__when { font-size: 12px; color: var(--text-secondary); }
+
+      /* Right rail */
+      .rail { display: flex; flex-direction: column; gap: var(--space-4); }
+      .rail-card {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-4);
+      }
+      .rail-card__eyebrow {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-secondary); margin: 0 0 var(--space-3); font-weight: 600;
+      }
+      .status-now { margin-bottom: var(--space-3); }
+      .rail-card select, .rail-card input {
+        width: 100%; height: var(--control-h-sm); padding: 0 var(--space-3);
+        border: 1px solid var(--border-light); border-radius: var(--radius);
+        font: inherit; color: var(--text-primary); background: var(--bg-surface);
+        margin-bottom: var(--space-2);
+      }
+      .status-hint, .due-rel {
+        font-size: 12px; color: var(--text-secondary); margin: var(--space-2) 0 0;
+      }
+      .due-rel--overdue { color: var(--color-navy); font-weight: 600; }
+      .due-rel--overdue::before { content: '⚠ '; color: var(--color-orange); }
+      .facts { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+      .fact { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+      .fact__k { font-size: 12px; color: var(--text-secondary); }
+      .fact__v { font-size: 13px; font-weight: 600; text-align: right; }
+      .fact__v--overdue { color: var(--color-navy); display: inline-flex; align-items: center; gap: var(--space-1); }
+      .fact__v--overdue i { color: var(--color-orange); }
+      .reviewer-block {
+        display: flex; align-items: center; gap: var(--space-3);
+        margin-bottom: var(--space-3);
+      }
+      .reviewer-block__name { font-weight: 600; }
+      .reviewer-block__team {
+        font-size: 11px; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+
+      /* =================== Intake =================== */
+      .intake-eyebrow {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-secondary); font-weight: 600; margin: 0 0 var(--space-2);
+        display: inline-flex; align-items: center; gap: var(--space-2);
+      }
+      .intake-eyebrow i { font-size: 16px; }
+      .category-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        gap: var(--space-4);
+      }
+      .category-card {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-5); cursor: pointer;
+        text-align: left; font-family: inherit; color: inherit;
+      }
+      .category-card:hover { border-color: var(--accent-interactive); color: var(--accent-interactive); }
+      .category-card h3 { font-size: 22px; margin-bottom: var(--space-2); }
+      .category-card p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+      .category-card i { font-size: 32px; color: var(--icon-default); margin-bottom: var(--space-3); display: block; }
+      .category-card:hover i { color: var(--accent-interactive); }
+
+      .form-card {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-5);
+      }
+      .form-section { margin-bottom: var(--space-6); }
+      .form-section:last-child { margin-bottom: 0; }
+      .form-section h2 {
+        font-size: 18px; margin-bottom: var(--space-4);
+        padding-bottom: var(--space-2); border-bottom: 1px solid var(--border-light);
+      }
+      .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+      @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+      .field-block { display: flex; flex-direction: column; gap: var(--space-1); }
+      .field-block--full { grid-column: 1 / -1; }
+      .form-label { font-size: 13px; font-weight: 600; }
+      .form-helper { font-size: 12px; color: var(--text-secondary); }
+      .field-error { font-size: 12px; color: var(--color-navy); background: var(--color-pale-orange); padding: 2px var(--space-2); border-radius: var(--radius); margin-top: var(--space-1); display: inline-block; }
+      .input, .select, .textarea {
+        height: var(--control-h); padding: 0 var(--space-3); font-size: 14px;
+        font-family: inherit; background: var(--bg-surface); color: var(--text-primary);
+        border: 1px solid var(--border-light); border-radius: var(--radius);
+      }
+      .input:focus, .select:focus, .textarea:focus { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+      .textarea { height: auto; padding: var(--space-3); min-height: 96px; resize: vertical; }
+      .yn-radio { display: flex; gap: var(--space-3); }
+      .yn-radio label {
+        display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer;
+        padding: var(--space-2) var(--space-3); border: 1px solid var(--border-light);
+        border-radius: var(--radius); font-size: 13px;
+      }
+      .yn-radio input { margin: 0; }
+      .form-actions {
+        display: flex; justify-content: flex-end; gap: var(--space-3);
+        margin-top: var(--space-5); flex-wrap: wrap;
+      }
+      .review-routing {
+        margin-top: var(--space-4); padding: var(--space-3) var(--space-4);
+        background: var(--color-pale-blue); color: var(--color-navy);
+        border-radius: var(--radius); font-size: 13px;
+      }
+      .review-routing__title { font-weight: 600; margin-bottom: var(--space-1); }
+
+      /* =================== Vendor modal =================== */
+      .modal-scrim {
+        position: fixed; inset: 0; background: var(--scrim);
+        backdrop-filter: blur(4px); display: grid; place-items: center;
+        z-index: 200; padding: var(--space-4);
+      }
+      .modal {
+        background: var(--bg-surface); border-radius: var(--radius);
+        width: min(560px, 92vw); max-height: 88vh; overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+      }
+      .modal__head {
+        padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-light);
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .modal__title { font-size: 22px; }
+      .modal__body { padding: var(--space-4) var(--space-5); }
+      .vmodal__statusline {
+        display: flex; align-items: center; gap: var(--space-3);
+        margin-bottom: var(--space-3); flex-wrap: wrap;
+      }
+      .vmodal__since { font-size: 12px; color: var(--text-secondary); }
+      .vmodal__note {
+        margin: 0 0 var(--space-4); font-size: 14px; color: var(--text-primary);
+      }
+      .vmodal__facts {
+        display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);
+        padding: var(--space-3) 0; border-top: 1px solid var(--border-light);
+        border-bottom: 1px solid var(--border-light); margin-bottom: var(--space-4);
+      }
+      @media (max-width: 480px) { .vmodal__facts { grid-template-columns: 1fr; } }
+      .vmodal__sectiontitle {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--text-secondary); font-weight: 600; margin: 0 0 var(--space-3);
+      }
+      .vmodal-contract {
+        display: flex; align-items: center; gap: var(--space-3); width: 100%;
+        padding: var(--space-3); background: var(--bg-page);
+        border: 0; border-radius: var(--radius); margin-bottom: var(--space-2);
+        cursor: pointer; font: inherit; color: var(--text-primary); text-align: left;
+      }
+      .vmodal-contract:hover { background: var(--color-pale-blue); }
+      .vmodal-contract__main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+      .vmodal-contract__title { font-weight: 600; }
+      .vmodal-contract__num {
+        font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono);
+      }
+      .vmodal__scope {
+        font-size: 12px; color: var(--text-secondary); margin: var(--space-3) 0 0;
+        display: flex; align-items: center; gap: var(--space-1);
+      }
+
+      /* =================== Bulk upload =================== */
+      .dropzone {
+        background: var(--bg-surface); border: 2px dashed var(--border-light);
+        border-radius: var(--radius); padding: var(--space-7);
+        text-align: center; margin-bottom: var(--space-4);
+      }
+      .dropzone i { font-size: 48px; color: var(--icon-default); margin-bottom: var(--space-3); }
+      .dropzone h2 { font-size: 22px; margin-bottom: var(--space-2); }
+      .dropzone p { color: var(--text-secondary); margin-bottom: var(--space-4); }
+      .bu-stats {
+        display: flex; gap: var(--space-4); margin-bottom: var(--space-4); flex-wrap: wrap;
+      }
+      .bu-stat {
+        background: var(--bg-surface); border: 1px solid var(--border-light);
+        border-radius: var(--radius); padding: var(--space-3) var(--space-4); min-width: 140px;
+      }
+      .bu-stat__k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); font-weight: 600; }
+      .bu-stat__v { font-family: var(--font-mix); font-size: 24px; }
+      .bu-stat--err .bu-stat__v { color: var(--color-navy); }
+      .bu-stat--err { background: var(--color-pale-orange); }
+      .bu-stat--ok { background: var(--color-pale-success); }
+      table.bu-table th, table.bu-table td { font-size: 13px; }
+      .bu-cell--error {
+        background: var(--color-pale-orange); position: relative;
+      }
+      .bu-cell--error::after {
+        content: ''; position: absolute; top: 4px; right: 4px;
+        width: 6px; height: 6px; border-radius: var(--radius-pill);
+        background: var(--color-error);
+      }
+      .bu-cell--editing { padding: 0 !important; }
+      .bu-cell--editing input, .bu-cell--editing select {
+        width: 100%; height: 36px; border: 0; padding: 0 var(--space-3);
+        font: inherit; background: var(--bg-surface); color: var(--text-primary);
+      }
+      .bu-row--skipped { opacity: 0.4; text-decoration: line-through; }
+      .bu-err-msg {
+        display: block; font-size: 10px; color: var(--color-navy); margin-top: 2px;
+      }
+
+      /* =================== Toast =================== */
+      .toast {
+        position: fixed; bottom: var(--space-5); right: var(--space-5);
+        max-width: min(360px, calc(100vw - 48px));
+        background: var(--bg-surface); border-left: 4px solid var(--color-success);
+        padding: var(--space-4); border-radius: var(--radius);
+        box-shadow: var(--shadow-md); font-size: 13px; z-index: 300;
+        animation: slideUp 300ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+      /* Banner */
+      .banner {
+        background: var(--color-pale-blue); color: var(--color-navy);
+        border-left: 4px solid var(--color-blue);
+        padding: var(--space-3) var(--space-4); border-radius: var(--radius);
+        margin-bottom: var(--space-5); display: flex; align-items: center;
+        gap: var(--space-3); font-size: 13px;
+      }
+      .banner i { font-size: 18px; }
+
+      /* Mobile */
+      @media (max-width: 1023px) {
+        .shell { grid-template-columns: 1fr; }
+        .sidebar { display: none; }
+        main { padding: var(--space-4); }
+        .topbar { padding: 0 var(--space-4); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <div class="body">
+        <header class="topbar">
+          <div class="topbar-page" id="page-title">Active contracts</div>
+          <div class="topbar-right">
+            <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
+              <i class="ph ph-moon" id="theme-icon"></i>
+            </button>
+            <button class="icon-btn" aria-label="Notifications">
+              <i class="ph ph-bell"></i>
+            </button>
+          </div>
+        </header>
+        <main id="main"></main>
+      </div>
+    </div>
+    <div id="toast-slot"></div>
+    <div id="modal-slot"></div>
+
+    <script>
+      /* =====================================================================
+         Seed data — synthetic, mirrors the prototype's data.js
+         ===================================================================== */
+      const STAGES = {
+        in_process:        { label: 'In process',       badge: 'draft',    kind: 'path' },
+        with_vendor:       { label: 'With vendor',       badge: 'info',     kind: 'path' },
+        with_requestor:    { label: 'With requestor',    badge: 'info',     kind: 'path' },
+        with_legal:        { label: 'With legal',        badge: 'pending',  kind: 'path' },
+        with_gco:          { label: 'With GCO',          badge: 'pending',  kind: 'path' },
+        with_infosec:      { label: 'With InfoSec',      badge: 'pending',  kind: 'path' },
+        with_privacy:      { label: 'With Privacy',      badge: 'pending',  kind: 'path' },
+        out_for_signature: { label: 'Out for signature', badge: 'info',     kind: 'path' },
+        completed:         { label: 'Completed',         badge: 'live',     kind: 'done' },
+        on_hold:           { label: 'On hold',           badge: 'hold',     kind: 'hold' },
+        canceled:          { label: 'Canceled',          badge: 'failed',   kind: 'closed' },
+        expired:           { label: 'Expired',           badge: 'archived', kind: 'closed' },
+        terminated:        { label: 'Terminated',        badge: 'failed',   kind: 'closed' },
+      };
+      const STAGE_ORDER = ['in_process','with_vendor','with_requestor','with_legal','with_gco','with_infosec','with_privacy','out_for_signature','completed'];
+      const STAGE_STEP = [
+        { id: 'in_process', label: 'Intake' },
+        { id: 'with_vendor', label: 'Vendor' },
+        { id: 'with_requestor', label: 'Requestor' },
+        { id: 'with_legal', label: 'Legal' },
+        { id: 'with_gco', label: 'GCO' },
+        { id: 'with_infosec', label: 'InfoSec' },
+        { id: 'with_privacy', label: 'Privacy' },
+        { id: 'out_for_signature', label: 'Signature' },
+        { id: 'completed', label: 'Completed' },
+      ];
+      const REVIEW_STAGES = ['with_legal','with_gco','with_infosec','with_privacy'];
+      const EXCEPTION_STAGES = ['on_hold','canceled','expired','terminated'];
+      const CLOSED_STAGES = ['completed','canceled','expired','terminated'];
+      const EXC_META = {
+        on_hold:    { icon: 'pause-circle', kind: 'hold', severity: 'info', title: 'On hold', body: 'Review is paused. Resume to continue the workflow.' },
+        canceled:   { icon: 'x-circle', kind: 'closed', severity: 'warning', title: 'Canceled', body: 'This contract was canceled before execution.' },
+        expired:    { icon: 'clock-countdown', kind: 'closed', severity: 'warning', title: 'Expired', body: 'The term has lapsed. Start a renewal to put a new term in place.' },
+        terminated: { icon: 'prohibit', kind: 'closed', severity: 'warning', title: 'Terminated', body: 'This contract was terminated before its natural end date.' },
+      };
+
+      const CATEGORIES = {
+        Event:      { icon: 'ticket' },
+        Facilities: { icon: 'wrench' },
+        IT:         { icon: 'desktop' },
+      };
+
+      const REVIEWERS = [
+        { name: 'Priya Nair', team: 'InfoSec' },
+        { name: 'Dana Olsson', team: 'Privacy' },
+        { name: 'Tom Reyes', team: 'GCO' },
+        { name: 'Marcus Webb', team: 'Corporate' },
+        { name: 'Lauren Pike', team: 'Litigation' },
+      ];
+
+      const IT_RISK = {
+        'CTR-2026-0142': { type: 'Software', personalData: true,  phi: false, usesAI: false },
+        'CTR-2026-0137': { type: 'Software', personalData: true,  phi: false, usesAI: true  },
+        'CTR-2026-0128': { type: 'Software', personalData: true,  phi: false, usesAI: false },
+        'CTR-2026-0124': { type: 'Software', personalData: false, phi: false, usesAI: true  },
+        'CTR-2026-0112': { type: 'Professional services', personalData: true, phi: true, usesAI: true },
+        'CTR-2026-0094': { type: 'Professional services', personalData: true, phi: false, usesAI: false },
+      };
+
+      const CONTRACTS = [
+        { num: 'CTR-2026-0142', title: 'Relativity One — eDiscovery platform renewal', vendor: 'Relativity ODA LLC', category: 'IT', stage: 'with_infosec', reviewer: 'Priya Nair', team: 'InfoSec', value: 486000, expiresDays: 38, updated: '40m ago', attention: true, action: 'InfoSec review overdue 2 days' },
+        { num: 'CTR-2026-0139', title: 'Annual partner retreat — venue & catering', vendor: 'Halcyon Events Group', category: 'Event', stage: 'out_for_signature', reviewer: 'Marcus Webb', team: 'Corporate', value: 212500, expiresDays: 21, updated: '2h ago', attention: true, action: 'Signature packet awaiting your send' },
+        { num: 'CTR-2026-0137', title: 'Microsoft 365 E5 enterprise agreement', vendor: 'Microsoft Corporation', category: 'IT', stage: 'with_privacy', reviewer: 'Dana Olsson', team: 'Privacy', value: 1340000, expiresDays: 64, updated: '5h ago', attention: false, action: null },
+        { num: 'CTR-2026-0131', title: 'Floor 14 HVAC service & maintenance', vendor: 'Meridian Facilities Co.', category: 'Facilities', stage: 'completed', reviewer: 'Tom Reyes', team: 'GCO', value: 96400, expiresDays: 11, updated: '1d ago', attention: true, action: 'Expires in 11 days — start renewal' },
+        { num: 'CTR-2026-0128', title: 'Litigation hold notification system', vendor: 'Exterro, Inc.', category: 'IT', stage: 'with_legal', reviewer: 'Priya Nair', team: 'InfoSec', value: 158000, expiresDays: 90, updated: '1d ago', attention: false, action: null },
+        { num: 'CTR-2026-0124', title: 'Westlaw Edge research subscription', vendor: 'Thomson Reuters', category: 'IT', stage: 'out_for_signature', reviewer: 'Marcus Webb', team: 'Corporate', value: 624000, expiresDays: 30, updated: '2d ago', attention: false, action: null },
+        { num: 'CTR-2026-0119', title: 'Client appreciation gala — production', vendor: 'Lumen Productions', category: 'Event', stage: 'in_process', reviewer: null, team: null, value: 174000, expiresDays: null, updated: '2d ago', attention: true, action: 'Unassigned — needs a reviewer' },
+        { num: 'CTR-2026-0116', title: 'Document destruction & shredding services', vendor: 'SecureShred Partners', category: 'Facilities', stage: 'completed', reviewer: 'Tom Reyes', team: 'GCO', value: 41200, expiresDays: 156, updated: '3d ago', attention: false, action: null },
+        { num: 'CTR-2026-0112', title: 'Generative AI contract-review pilot', vendor: 'Harvey AI, Inc.', category: 'IT', stage: 'with_privacy', reviewer: 'Dana Olsson', team: 'Privacy', value: 295000, expiresDays: 47, updated: '3d ago', attention: true, action: 'AI + PHI flags — Privacy escalation' },
+        { num: 'CTR-2026-0108', title: 'Reception & lobby renovation', vendor: 'Atrium Build Group', category: 'Facilities', stage: 'with_vendor', reviewer: 'Lauren Pike', team: 'Litigation', value: 388000, expiresDays: 60, updated: '4d ago', attention: false, action: null },
+        { num: 'CTR-2026-0103', title: 'CLE summit — speaker AV & livestream', vendor: 'Halcyon Events Group', category: 'Event', stage: 'with_requestor', reviewer: 'Marcus Webb', team: 'Corporate', value: 68500, expiresDays: 14, updated: '5d ago', attention: false, action: null },
+        { num: 'CTR-2026-0098', title: 'Managed print fleet lease', vendor: 'Canon Business Solutions', category: 'Facilities', stage: 'completed', reviewer: 'Tom Reyes', team: 'GCO', value: 132000, expiresDays: 203, updated: '1w ago', attention: false, action: null },
+        { num: 'CTR-2026-0094', title: 'iManage Work cloud migration — SOW', vendor: 'iManage LLC', category: 'IT', stage: 'with_gco', reviewer: 'Priya Nair', team: 'InfoSec', value: 540000, expiresDays: 120, updated: '1w ago', attention: false, action: null },
+        { num: 'CTR-2026-0089', title: 'Office coffee & pantry program', vendor: 'Bright Bean Services', category: 'Facilities', stage: 'completed', reviewer: 'Tom Reyes', team: 'GCO', value: 28800, expiresDays: 9, updated: '1w ago', attention: true, action: 'Expires in 9 days — start renewal' },
+        { num: 'CTR-2026-0081', title: 'Trial graphics & demonstratives studio', vendor: 'Vantage Visuals', category: 'Event', stage: 'on_hold', reviewer: 'Lauren Pike', team: 'Litigation', value: 92000, expiresDays: null, updated: '1w ago', attention: true, action: 'On hold — awaiting budget approval' },
+        { num: 'CTR-2026-0076', title: 'Holiday party — venue hold', vendor: 'Halcyon Events Group', category: 'Event', stage: 'canceled', reviewer: 'Marcus Webb', team: 'Corporate', value: 64000, expiresDays: null, updated: '2w ago', attention: false, action: null },
+        { num: 'CTR-2026-0067', title: 'Legacy timekeeping system support', vendor: 'Chronos Systems', category: 'IT', stage: 'expired', reviewer: 'Priya Nair', team: 'InfoSec', value: 54000, expiresDays: -12, updated: '2w ago', attention: true, action: 'Expired 12 days ago — renew or retire' },
+        { num: 'CTR-2026-0058', title: 'Off-site records storage', vendor: 'Vault Records Co.', category: 'Facilities', stage: 'terminated', reviewer: 'Tom Reyes', team: 'GCO', value: 38000, expiresDays: null, updated: '3w ago', attention: false, action: null },
+      ];
+
+      const VENDOR_BADGE = { Preferred: 'live', Standard: 'draft', Difficult: 'pending', Blacklisted: 'failed' };
+      const VENDORS = {
+        'Microsoft Corporation': { status: 'Preferred', category: 'IT', contact: 'Sara Lindqvist', email: 'sara.lindqvist@microsoft.example', phone: '+1 (425) 555-0142', location: 'Redmond, WA', since: 2014, note: 'On the firm’s preferred panel — fast turnaround on standard terms.' },
+        'Relativity ODA LLC': { status: 'Preferred', category: 'IT', contact: 'Marcus Hale', email: 'm.hale@relativity.example', phone: '+1 (312) 555-0188', location: 'Chicago, IL', since: 2017, note: 'Preferred eDiscovery partner. Predictable redlines and pricing.' },
+        'Thomson Reuters': { status: 'Preferred', category: 'IT', contact: 'Dana Kohl', email: 'dana.kohl@thomsonreuters.example', phone: '+1 (646) 555-0173', location: 'New York, NY', since: 2012, note: 'Long-standing research vendor on the preferred panel.' },
+        'Halcyon Events Group': { status: 'Preferred', category: 'Event', contact: 'Priya Raman', email: 'priya@halcyonevents.example', phone: '+1 (212) 555-0119', location: 'New York, NY', since: 2019, note: 'Reliable across multiple firm events; standard terms accepted.' },
+        'iManage LLC': { status: 'Standard', category: 'IT', contact: 'Tom Becker', email: 'tbecker@imanage.example', phone: '+1 (312) 555-0155', location: 'Chicago, IL', since: 2016, note: 'Approved vendor. No outstanding concerns.' },
+        'Harvey AI, Inc.': { status: 'Standard', category: 'IT', contact: 'Elise Fontaine', email: 'elise@harvey.example', phone: '+1 (415) 555-0190', location: 'San Francisco, CA', since: 2024, note: 'New vendor — AI tooling under Privacy and InfoSec review.' },
+        'Exterro, Inc.': { status: 'Standard', category: 'IT', contact: 'Greg Mott', email: 'gmott@exterro.example', phone: '+1 (503) 555-0166', location: 'Portland, OR', since: 2018, note: 'Approved vendor. No outstanding concerns.' },
+        'Meridian Facilities Co.': { status: 'Standard', category: 'Facilities', contact: 'Carla Nunes', email: 'carla@meridianfac.example', phone: '+1 (213) 555-0177', location: 'Los Angeles, CA', since: 2015, note: 'Approved facilities vendor. Standard terms.' },
+        'SecureShred Partners': { status: 'Standard', category: 'Facilities', contact: 'Bill Ortega', email: 'bill@secureshred.example', phone: '+1 (312) 555-0144', location: 'Chicago, IL', since: 2016, note: 'Approved vendor. Certificates of destruction on file.' },
+        'Canon Business Solutions': { status: 'Standard', category: 'Facilities', contact: 'Janet Pryce', email: 'janet.pryce@canon.example', phone: '+1 (516) 555-0133', location: 'Melville, NY', since: 2013, note: 'Approved vendor. No outstanding concerns.' },
+        'Bright Bean Services': { status: 'Standard', category: 'Facilities', contact: 'Owen Cole', email: 'owen@brightbean.example', phone: '+1 (312) 555-0120', location: 'Chicago, IL', since: 2021, note: 'Approved vendor. Small pantry program.' },
+        'Vantage Visuals': { status: 'Standard', category: 'Event', contact: 'Nina Foss', email: 'nina@vantagevisuals.example', phone: '+1 (312) 555-0162', location: 'Chicago, IL', since: 2022, note: 'Approved vendor. Trial graphics and demonstratives.' },
+        'Atrium Build Group': { status: 'Difficult', category: 'Facilities', contact: 'Rick Salas', email: 'rick@atriumbuild.example', phone: '+1 (312) 555-0199', location: 'Chicago, IL', since: 2020, note: 'Budget overruns and slow redlines on the lobby renovation — manage closely.' },
+        'Lumen Productions': { status: 'Difficult', category: 'Event', contact: 'Maya Brandt', email: 'maya@lumenprod.example', phone: '+1 (323) 555-0181', location: 'Los Angeles, CA', since: 2019, note: 'Missed deliverables on the last gala — hold to firm timelines.' },
+        'Chronos Systems': { status: 'Difficult', category: 'IT', contact: 'Paul Devar', email: 'pdevar@chronos.example', phone: '+1 (408) 555-0150', location: 'San Jose, CA', since: 2011, note: 'Legacy platform, slow support response — evaluating replacement.' },
+        'Vault Records Co.': { status: 'Blacklisted', category: 'Facilities', contact: 'Henry Lowe', email: 'h.lowe@vaultrecords.example', phone: '+1 (708) 555-0138', location: 'Cicero, IL', since: 2014, note: 'Data-handling incident under review — do not re-engage without GC sign-off.' },
+      };
+      const VENDOR_STATUS_ORDER = ['Preferred','Standard','Difficult','Blacklisted'];
+
+      const DOCSETS = {
+        IT: ['Master services agreement', 'Order form', 'Data processing addendum', 'Information security exhibit'],
+        Event: ['Services agreement', 'Event statement of work', 'Certificate of insurance'],
+        Facilities: ['Services agreement', 'Scope of work', 'Certificate of insurance'],
+      };
+
+      /* =====================================================================
+         Helpers
+         ===================================================================== */
+      function fmtUsd(n) { if (n == null) return '—'; return '$' + n.toLocaleString('en-US'); }
+      function fmtShort(iso) { if (!iso) return '—'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' }); }
+      function fmtLong(iso) { if (!iso) return '—'; return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }); }
+      const MS_DAY = 86400000;
+      function todayISO() { return new Date().toISOString().slice(0, 10); }
+      function parseAgo(s) {
+        const m = /(\d+)\s*(m|h|d|w)/.exec(s || ''); if (!m) return new Date();
+        const n = +m[1]; const mult = m[2] === 'm' ? 60000 : m[2] === 'h' ? 3600000 : m[2] === 'd' ? MS_DAY : 7*MS_DAY;
+        return new Date(Date.now() - n * mult);
+      }
+      function actionDates(c) {
+        const now = new Date();
+        const seed = parseInt(c.num.slice(-3), 10) || 1;
+        const lastActionISO = parseAgo(c.updated).toISOString().slice(0,10);
+        let nextDueISO = null;
+        if (c.stage === 'canceled' || c.stage === 'terminated') { nextDueISO = null; }
+        else if (c.stage === 'completed' && c.expiresDays != null) {
+          nextDueISO = new Date(now.getTime() + (c.expiresDays - 60) * MS_DAY).toISOString().slice(0,10);
+        } else if (c.stage === 'in_process') {
+          nextDueISO = new Date(now.getTime() + 3 * MS_DAY).toISOString().slice(0,10);
+        } else {
+          const nextDays = c.attention ? -2 : (4 + (seed % 8));
+          nextDueISO = new Date(now.getTime() + nextDays * MS_DAY).toISOString().slice(0,10);
+        }
+        return { lastActionISO, nextDueISO };
+      }
+      function daysFromToday(iso) {
+        if (!iso) return null;
+        return Math.round((new Date(iso + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / MS_DAY);
+      }
+      function expiresCellHtml(days, stage) {
+        if (stage === 'expired' || (days != null && days < 0)) {
+          return '<span class="due due--soon"><i class="ph ph-warning-circle"></i>Expired</span>';
+        }
+        if (stage === 'canceled' || stage === 'terminated') return '<span class="reviewer--none">—</span>';
+        if (days == null) return '<span class="reviewer--none">Not executed</span>';
+        const soon = days <= 14;
+        return '<span class="due' + (soon ? ' due--soon' : '') + '">' +
+          (soon ? '<i class="ph ph-warning-circle"></i>' : '') +
+          'in ' + days + (days === 1 ? ' day' : ' days') + '</span>';
+      }
+      function nextDueCellHtml(iso, stage) {
+        if (!iso) return '<span class="reviewer--none">—</span>';
+        const d = daysFromToday(iso);
+        const overdue = d < 0 && !['canceled','terminated','completed'].includes(stage);
+        return '<span class="due' + (overdue ? ' due--soon' : '') + '">' +
+          (overdue ? '<i class="ph ph-warning-circle"></i>' : '') + fmtShort(iso) + '</span>';
+      }
+
+      /* =====================================================================
+         buildDetail — derive details for a contract (mirrors prototype)
+         ===================================================================== */
+      function buildDetail(c) {
+        const seed = parseInt(c.num.slice(-3), 10) || 1;
+        const requester = c.requester || ['Aaron Cole','Bianca Ruiz','David Stern','Emma Liang','Grace Okafor','Frank Moss'][seed % 6];
+        const now = new Date();
+        const idx = STAGE_ORDER.indexOf(c.stage);
+        const isException = EXCEPTION_STAGES.includes(c.stage);
+        const executed = ['completed','expired','terminated'].includes(c.stage);
+
+        let termStart, termEnd, hasTerm = true;
+        if (c.expiresDays != null) {
+          termEnd = new Date(now.getTime() + c.expiresDays * MS_DAY);
+          termStart = new Date(termEnd.getTime() - 365 * MS_DAY);
+        } else if (executed) {
+          termEnd = new Date(now.getTime() - 30 * MS_DAY);
+          termStart = new Date(termEnd.getTime() - 365 * MS_DAY);
+        } else {
+          termStart = new Date(now.getTime() + 21 * MS_DAY);
+          termEnd = new Date(termStart.getTime() + 365 * MS_DAY);
+          hasTerm = false;
+        }
+        const term = (hasTerm ? '' : 'Proposed · ') +
+          termStart.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' – ' +
+          termEnd.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        const reqDate = new Date(now.getTime() - (25 + (seed % 70)) * MS_DAY)
+          .toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        const risk = c.risk || IT_RISK[c.num] || (c.category === 'IT' ? { type: 'Software', personalData: false, phi: false, usesAI: false } : null);
+
+        const description = (c.category + ' procurement — ' + c.vendor + '. '
+          + (executed ? 'Executed agreement under active management by Procurement.'
+                      : 'Submitted by the requester and under Procurement review ahead of execution.'));
+
+        const docs = (DOCSETS[c.category] || DOCSETS.IT).map((name, i) => {
+          const v = ((seed + i) % 3) + 1;
+          const updated = new Date(now.getTime() - (3 + i * 5 + (seed % 8)) * MS_DAY)
+            .toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+          return { name, version: 'v' + v, versions: v, updated, by: i === 0 ? 'Lisa Farkas' : (c.reviewer || 'Lisa Farkas') };
+        });
+
+        const r = c.reviewer, t = c.team;
+        const comments = [];
+        if (c.stage === 'in_process') {
+          comments.push({ author: requester, role: 'Requester', when: '2 days ago', text: "Submitting for review — we'd like this in place before the current term lapses." });
+        } else if (c.stage === 'with_vendor') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '1 day ago', text: 'Sent our redlines to ' + c.vendor + '. Waiting on their turn before routing internally.' });
+        } else if (c.stage === 'with_requestor') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '1 day ago', text: 'Back with ' + requester + ' — we need the confirmed scope and budget code before this can move to review.' });
+        } else if (REVIEW_STAGES.includes(c.stage)) {
+          comments.push({ author: r || 'Review team', role: t || 'Review', when: '1 day ago', text: 'Reviewing the terms now. Flagged the liability cap and the data-handling clause for the vendor to address.' });
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '4 hours ago', text: c.vendor + ' is on our preferred list, so let’s prioritize turnaround on this one.' });
+        } else if (c.stage === 'out_for_signature') {
+          comments.push({ author: r || 'Review team', role: t || 'Review', when: '2 days ago', text: 'Redlines accepted. No outstanding concerns from ' + (t || 'the review team') + '.' });
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '1 day ago', text: 'Signature packet sent to ' + c.vendor + '. Awaiting countersignature.' });
+        } else if (c.stage === 'completed') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '1 week ago', text: 'Executed and active. Renewal reminder scheduled for 60 days before expiry.' });
+        } else if (c.stage === 'on_hold') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '3 days ago', text: 'Paused pending budget approval. Will resume the review once finance signs off.' });
+        } else if (c.stage === 'canceled') {
+          comments.push({ author: requester, role: 'Requester', when: '2 weeks ago', text: 'Withdrawing this request — the need went away on our side. Please close it out.' });
+        } else if (c.stage === 'expired') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '2 weeks ago', text: 'Term has lapsed without a renewal. Confirming with the requester whether to renew or retire.' });
+        } else if (c.stage === 'terminated') {
+          comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: '3 weeks ago', text: 'Terminated for convenience. Final invoice reconciled and filed.' });
+        }
+
+        function stageEvent(id) {
+          switch (id) {
+            case 'in_process': return { icon: 'file-plus', text: 'Contract created by ' + requester };
+            case 'with_vendor': return { icon: 'paper-plane-tilt', text: 'Sent to ' + c.vendor + ' for redlines' };
+            case 'with_requestor': return { icon: 'user', text: 'Returned to ' + requester + ' for clarification' };
+            case 'with_legal': return { icon: 'scales', text: 'Routed to Legal for review' };
+            case 'with_gco': return { icon: 'gavel', text: 'Routed to GCO for review' };
+            case 'with_infosec': return { icon: 'shield-check', text: 'Routed to InfoSec for review' };
+            case 'with_privacy': return { icon: 'lock', text: 'Routed to Privacy for review' };
+            case 'out_for_signature': return { icon: 'signature', text: 'Signature packet sent to ' + c.vendor };
+            case 'completed': return { icon: 'check-circle', text: 'Fully executed — contract completed' };
+            default: return { icon: 'circle', text: id };
+          }
+        }
+        const EXC_EV = {
+          on_hold: { icon: 'pause', text: 'Placed on hold' },
+          canceled: { icon: 'x-circle', text: 'Contract canceled' },
+          expired: { icon: 'clock-countdown', text: 'Term lapsed — contract expired' },
+          terminated: { icon: 'prohibit', text: 'Contract terminated' },
+        };
+        const whens = ['Today','Yesterday','4 days ago','1 week ago','2 weeks ago','3 weeks ago','1 month ago','5 weeks ago','6 weeks ago','2 months ago'];
+        let activity;
+        if (isException) {
+          activity = [EXC_EV[c.stage], stageEvent('in_process')];
+        } else {
+          activity = STAGE_ORDER.slice(0, idx + 1).map((id) => stageEvent(id)).reverse();
+        }
+        activity = activity.map((e, i) => Object.assign({}, e, { when: whens[Math.min(i, whens.length - 1)] }));
+        if (c.attention && c.action) activity.unshift({ icon: 'bell', text: c.action, when: 'Today' });
+
+        const teams = []; const addTeam = (x) => { if (x && teams.indexOf(x) === -1) teams.push(x); };
+        addTeam('GCO');
+        addTeam(c.team);
+        if (c.category === 'IT') addTeam('InfoSec');
+        if (risk && (risk.personalData || risk.phi)) addTeam('Privacy');
+
+        const reviewStart = STAGE_ORDER.indexOf('with_legal');
+        const reviewEnd = STAGE_ORDER.indexOf('with_privacy');
+        const approvals = teams.map((team, i) => {
+          const approved = () => ({ team, status: 'approved', when: new Date(now.getTime() - (6 + i * 3) * MS_DAY).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) });
+          if (executed || c.stage === 'completed' || (idx > reviewEnd && idx !== -1)) return approved();
+          if (c.stage === 'canceled') return { team, status: 'pending', when: null };
+          if (c.stage === 'on_hold') return i === 0 ? approved() : { team, status: 'pending', when: null };
+          if (idx !== -1 && idx < reviewStart) return { team, status: 'pending', when: null };
+          if (team === c.team) return { team, status: c.attention ? 'overdue' : 'pending', when: null };
+          return approved();
+        });
+
+        const { lastActionISO, nextDueISO } = actionDates(c);
+
+        const leadName = c.reviewer || 'review team';
+        const meetings = [];
+        if (c.stage !== 'in_process') {
+          meetings.push({
+            type: 'Meeting',
+            date: new Date(now.getTime() - (7 + (seed % 5)) * MS_DAY).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+            participants: 'Lisa Farkas, ' + leadName + ', ' + c.vendor,
+            text: 'Kickoff call to align on scope and timeline. ' + c.vendor + ' walked through their standard terms; we flagged the liability cap and the data-handling clause for follow-up.',
+          });
+        }
+        if (REVIEW_STAGES.indexOf(c.stage) !== -1 || ['out_for_signature','completed'].indexOf(c.stage) !== -1) {
+          meetings.unshift({
+            type: 'Call',
+            date: new Date(now.getTime() - (3 + (seed % 4)) * MS_DAY).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+            participants: 'Lisa Farkas, ' + leadName,
+            text: 'Internal sync on outstanding redlines. Agreed to push the indemnification language back to the vendor before routing for signature.',
+          });
+        }
+        if (c.stage === 'on_hold') {
+          meetings.unshift({
+            type: 'Note',
+            date: new Date(now.getTime() - 3 * MS_DAY).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+            participants: 'Lisa Farkas',
+            text: 'Placed on hold pending budget approval from Finance. Revisit once the FY allocation is confirmed.',
+          });
+        }
+
+        return { requester, requestDate: reqDate, term, executed, risk, description, documents: docs, comments, activity, approvals, lastActionISO, nextDueISO, meetings };
+      }
+
+      /* =====================================================================
+         Routing
+         ===================================================================== */
+      const ROUTES = ['dashboard','detail','intake','intake-form','vendors','archive','my-submissions','bulk'];
+      function parseHash() {
+        const raw = (location.hash || '#dashboard').slice(1);
+        const [route, ...params] = raw.split('/');
+        return { route: ROUTES.indexOf(route) !== -1 ? route : 'dashboard', params };
+      }
+      let currentRoute = null;
+      function go(hash) {
+        currentRoute = hash;
+        // Try to update the URL hash for browser back/forward support, but don't depend on
+        // hashchange firing — srcdoc iframes (Launch preview) silently swallow it. Always
+        // dispatch explicitly so navigation works in every environment.
+        try { location.hash = hash; } catch (_) { /* ignore */ }
+        dispatch();
+      }
+      window.go = go;
+      function parseHashOrState() {
+        if (currentRoute) {
+          const [route, ...params] = currentRoute.split('/');
+          return { route: ROUTES.indexOf(route) !== -1 ? route : 'dashboard', params };
+        }
+        return parseHash();
+      }
+
+      /* =====================================================================
+         Sidebar
+         ===================================================================== */
+      const SYMBOL_SVG =
+        '<svg viewBox="0 0 171.84 171.84" xmlns="http://www.w3.org/2000/svg" fill="currentColor" role="img" aria-label="McDermott">' +
+        '<path d="M43,85.12l22.6,36.87h-22.6v-36.87ZM113.34,121.9h16.81V47.95h-16.81v73.95ZM42.17,47.95l47.09,76.79,8.38-20.04-34.79-56.75h-20.67ZM171.84,85.92c0,47.37-38.55,85.92-85.92,85.92S0,133.29,0,85.92,38.55,0,85.92,0s85.92,38.55,85.92,85.92ZM162.77,85.92c0-42.37-34.47-76.85-76.85-76.85S9.07,43.55,9.07,85.92s34.47,76.85,76.85,76.85,76.85-34.47,76.85-76.85Z"/></svg>';
+
+      function renderSidebar() {
+        const { route } = parseHash();
+        const items = [
+          { route: 'dashboard', label: 'Active contracts', icon: 'squares-four', section: 'Primary' },
+          { route: 'vendors', label: 'Vendors', icon: 'buildings', section: 'Primary' },
+          { route: 'intake', label: 'New contract', icon: 'plus-circle', section: 'Create' },
+          { route: 'bulk', label: 'Bulk upload', icon: 'upload-simple', section: 'Create' },
+          { route: 'archive', label: 'Archive', icon: 'archive', section: 'More' },
+          { route: 'my-submissions', label: 'My submissions', icon: 'list', section: 'More' },
+        ];
+        let html =
+          '<span class="lockup"><span class="lockup__symbol">' + SYMBOL_SVG +
+          '</span><span class="lockup__divider" aria-hidden="true"></span>' +
+          '<span class="lockup__name">Contract Manager</span></span><ul class="nav">';
+        let lastSection = null;
+        for (const item of items) {
+          if (item.section !== lastSection) {
+            html += '<li class="nav-section">' + item.section + '</li>';
+            lastSection = item.section;
+          }
+          const isActive = item.route === route ||
+            (item.route === 'dashboard' && route === 'detail') ||
+            (item.route === 'intake' && route === 'intake-form');
+          html += '<li><a class="nav-item ' + (isActive ? 'active' : '') +
+            '" href="#' + item.route + '"><i class="ph ph-' + item.icon + '"></i><span>' +
+            item.label + '</span></a></li>';
+        }
+        html += '</ul><div class="pinned"><div class="avatar" aria-hidden="true">LF</div>' +
+          '<div><div class="user-name">Lisa Farkas</div><div class="user-role">Procurement</div></div></div>';
+        document.getElementById('sidebar').innerHTML = html;
+      }
+
+      /* =====================================================================
+         Dashboard
+         ===================================================================== */
+      let dashState = { filter: 'all', query: '', sort: { key: 'default', dir: 'asc' } };
+
+      function isExpiring(c) {
+        return c.expiresDays != null && c.expiresDays >= 0 && c.expiresDays <= 14 && c.stage !== 'expired';
+      }
+
+      function renderDashboard() {
+        document.getElementById('page-title').textContent = 'Active contracts';
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { weekday: 'long' }) + ', ' +
+          now.getDate() + ' ' + now.toLocaleDateString('en-US', { month: 'long' });
+
+        const counts = {
+          all: CONTRACTS.length,
+          action: CONTRACTS.filter((c) => c.attention).length,
+          review: CONTRACTS.filter((c) => REVIEW_STAGES.indexOf(c.stage) !== -1).length,
+          sign: CONTRACTS.filter((c) => c.stage === 'out_for_signature').length,
+          expiring: CONTRACTS.filter(isExpiring).length,
+          closed: CONTRACTS.filter((c) => EXCEPTION_STAGES.indexOf(c.stage) !== -1).length,
+        };
+
+        const chips = [
+          { id: 'all', label: 'All active', count: counts.all, dot: null },
+          { id: 'action', label: 'Needs your action', count: counts.action, dot: 'action' },
+          { id: 'review', label: 'In attorney review', count: counts.review, dot: 'review' },
+          { id: 'sign', label: 'Awaiting signature', count: counts.sign, dot: 'sign' },
+          { id: 'expiring', label: 'Expiring ≤ 14 days', count: counts.expiring, dot: 'expiring' },
+          { id: 'closed', label: 'On hold & closed', count: counts.closed, dot: 'closed' },
+        ];
+
+        const triageHtml = chips.map((c) =>
+          '<button class="triage__chip' + (c.dot === 'action' ? ' attention' : '') +
+          (dashState.filter === c.id ? ' is-active' : '') + '" data-filter="' + c.id + '">' +
+          '<div class="triage__top"><span class="triage__count">' + c.count + '</span>' +
+          (c.dot ? '<span class="triage__dot triage__dot--' + c.dot + '"></span>' : '') +
+          '</div><span class="triage__label">' + c.label + '</span></button>'
+        ).join('');
+
+        let rows = CONTRACTS.slice();
+        if (dashState.filter === 'action') rows = rows.filter((c) => c.attention);
+        else if (dashState.filter === 'review') rows = rows.filter((c) => REVIEW_STAGES.indexOf(c.stage) !== -1);
+        else if (dashState.filter === 'sign') rows = rows.filter((c) => c.stage === 'out_for_signature');
+        else if (dashState.filter === 'expiring') rows = rows.filter(isExpiring);
+        else if (dashState.filter === 'closed') rows = rows.filter((c) => EXCEPTION_STAGES.indexOf(c.stage) !== -1);
+
+        const q = dashState.query.trim().toLowerCase();
+        if (q) rows = rows.filter((c) => (c.title + ' ' + c.vendor + ' ' + c.num).toLowerCase().indexOf(q) !== -1);
+
+        const dateMap = {};
+        CONTRACTS.forEach((c) => { dateMap[c.num] = actionDates(c); });
+
+        if (dashState.sort.key !== 'default') {
+          const STAGE_RANK = {}; STAGE_ORDER.forEach((id, i) => { STAGE_RANK[id] = i; });
+          EXCEPTION_STAGES.forEach((id, i) => { STAGE_RANK[id] = STAGE_ORDER.length + i; });
+          const dir = dashState.sort.dir === 'asc' ? 1 : -1;
+          rows.sort((a, b) => {
+            let av, bv;
+            const k = dashState.sort.key;
+            if (k === 'value') { av = a.value; bv = b.value; }
+            else if (k === 'expires') { av = a.expiresDays == null ? Infinity : a.expiresDays; bv = b.expiresDays == null ? Infinity : b.expiresDays; }
+            else if (k === 'stage') { av = STAGE_RANK[a.stage]; bv = STAGE_RANK[b.stage]; }
+            else if (k === 'lastAction') { av = dateMap[a.num].lastActionISO || ''; bv = dateMap[b.num].lastActionISO || ''; }
+            else if (k === 'nextDue') { av = dateMap[a.num].nextDueISO || '9999-12-31'; bv = dateMap[b.num].nextDueISO || '9999-12-31'; }
+            else if (k === 'reviewer') { av = (a.reviewer || '￿').toLowerCase(); bv = (b.reviewer || '￿').toLowerCase(); }
+            else { av = (a[k] || '').toLowerCase(); bv = (b[k] || '').toLowerCase(); }
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+          });
+        }
+
+        function sortIcon(key) {
+          if (dashState.sort.key !== key) return 'caret-up-down';
+          return dashState.sort.dir === 'asc' ? 'caret-up' : 'caret-down';
+        }
+
+        const tbody = rows.length === 0
+          ? '<tr class="empty-row"><td colspan="10">No contracts match this view. Clear the filter or search to see all active contracts.</td></tr>'
+          : rows.map((c) => {
+              const info = STAGES[c.stage];
+              const cat = CATEGORIES[c.category];
+              return '<tr data-nav="detail/' + c.num + '">' +
+                '<td class="col-flag"><span class="flag-slot">' +
+                (c.attention ? '<span class="flag-dot" aria-label="Needs attention"></span>' : '') +
+                '</span></td>' +
+                '<td><span class="cell-name">' + c.title + '<span class="cell-num">' + c.num + '</span></span></td>' +
+                '<td>' + c.vendor + '</td>' +
+                '<td><span class="cat"><i class="ph ph-' + cat.icon + '"></i>' + c.category + '</span></td>' +
+                '<td><span class="badge badge--' + info.badge + '">' + info.label + '</span></td>' +
+                '<td>' + (c.reviewer
+                  ? '<span class="reviewer__txt"><span class="reviewer__name">' + c.reviewer + '</span><span class="reviewer__team">' + c.team + '</span></span>'
+                  : '<span class="reviewer--none">Unassigned</span>') + '</td>' +
+                '<td class="numeric">' + fmtUsd(c.value) + '</td>' +
+                '<td>' + expiresCellHtml(c.expiresDays, c.stage) + '</td>' +
+                '<td><span class="cell-date">' + fmtShort(dateMap[c.num].lastActionISO) + '</span></td>' +
+                '<td>' + nextDueCellHtml(dateMap[c.num].nextDueISO, c.stage) + '</td>' +
+                '</tr>';
+            }).join('');
+
+        document.getElementById('main').innerHTML =
+          '<div class="page-head">' +
+          '<div><h1>Active contracts</h1>' +
+          '<div class="subtitle">' + dateStr + ' · everything in flight across Event, Facilities, and IT.</div></div>' +
+          '<div class="page-head__actions">' +
+          '<a class="btn btn--secondary" href="#bulk"><i class="ph ph-upload-simple"></i>Bulk upload</a>' +
+          '<a class="btn" href="#intake"><i class="ph ph-plus"></i>New contract</a>' +
+          '</div></div>' +
+          '<div class="banner"><i class="ph ph-info"></i><span><strong>Demo mode.</strong> Data is synthetic — no real client information. Click any row to open the contract.</span></div>' +
+          '<div class="triage" role="group" aria-label="Filter contracts by what needs attention">' + triageHtml + '</div>' +
+          '<div class="table-toolbar">' +
+          '<div class="table-search"><i class="ph ph-magnifying-glass"></i>' +
+          '<input type="search" id="dash-search" placeholder="Search contracts, vendors, or numbers" value="' + dashState.query.replace(/"/g,'&quot;') + '" /></div>' +
+          '<span class="table-meta">' + rows.length + ' of ' + counts.all + ' contracts</span>' +
+          '</div>' +
+          '<div class="table-shell"><table class="data-table"><thead><tr>' +
+          '<th class="col-flag" aria-label="Attention"></th>' +
+          '<th class="sortable" data-sort="title"><span class="th-inner">Contract <i class="ph ph-' + sortIcon('title') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="vendor"><span class="th-inner">Vendor <i class="ph ph-' + sortIcon('vendor') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="category"><span class="th-inner">Category <i class="ph ph-' + sortIcon('category') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="stage"><span class="th-inner">Stage <i class="ph ph-' + sortIcon('stage') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="reviewer"><span class="th-inner">Reviewer <i class="ph ph-' + sortIcon('reviewer') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="value" style="text-align:right"><span class="th-inner" style="flex-direction:row-reverse">Value <i class="ph ph-' + sortIcon('value') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="expires"><span class="th-inner">Expires <i class="ph ph-' + sortIcon('expires') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="lastAction"><span class="th-inner">Last action <i class="ph ph-' + sortIcon('lastAction') + '"></i></span></th>' +
+          '<th class="sortable" data-sort="nextDue"><span class="th-inner">Next due <i class="ph ph-' + sortIcon('nextDue') + '"></i></span></th>' +
+          '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+
+        // Wire interactions
+        document.querySelectorAll('.triage__chip').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            dashState.filter = btn.dataset.filter; renderDashboard();
+          });
+        });
+        const search = document.getElementById('dash-search');
+        search.addEventListener('input', (e) => {
+          dashState.query = e.target.value; renderDashboard();
+          setTimeout(() => { const s = document.getElementById('dash-search'); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }, 0);
+        });
+        document.querySelectorAll('th.sortable').forEach((th) => {
+          th.addEventListener('click', () => {
+            const key = th.dataset.sort;
+            dashState.sort = { key, dir: dashState.sort.key === key && dashState.sort.dir === 'asc' ? 'desc' : 'asc' };
+            renderDashboard();
+          });
+        });
+      }
+
+      /* =====================================================================
+         Contract detail
+         ===================================================================== */
+      let detailState = {};
+
+      function renderDetail(num) {
+        const c = CONTRACTS.find((x) => x.num === num);
+        if (!c) { document.getElementById('main').innerHTML = '<p>Contract not found.</p>'; return; }
+        document.getElementById('page-title').textContent = c.num;
+
+        if (!detailState[num]) {
+          const d = buildDetail(c);
+          detailState[num] = {
+            stage: c.stage, tab: 'details',
+            docs: d.documents, comments: d.comments, activity: d.activity,
+            approvals: d.approvals, meetings: d.meetings,
+            reviewer: { name: c.reviewer, team: c.team },
+            lastActionISO: d.lastActionISO, nextDueISO: d.nextDueISO,
+          };
+        }
+        const s = detailState[num];
+        const d = buildDetail(c);
+        const stage = s.stage;
+        const info = STAGES[stage];
+        const idx = STAGE_ORDER.indexOf(stage);
+        const isException = EXCEPTION_STAGES.indexOf(stage) !== -1;
+        const inReview = REVIEW_STAGES.indexOf(stage) !== -1;
+        const outstanding = s.approvals.filter((a) => a.status !== 'approved').length;
+        const blocked = stage === 'with_privacy' && outstanding > 0;
+        const next = idx !== -1 && idx < STAGE_STEP.length - 1 ? STAGE_STEP[idx + 1] : null;
+
+        // Stepper
+        let stepperHtml = '';
+        STAGE_STEP.forEach((stp, i) => {
+          const state = isException ? 'todo' : (i < idx ? 'done' : i === idx ? 'current' : 'todo');
+          stepperHtml += '<div class="step ' + state + '"><span class="step__circle">' +
+            (state === 'done' ? '<i class="ph ph-check"></i>' : (i + 1)) +
+            '</span><span class="step__label">' + stp.label + '</span></div>';
+        });
+        let workflowFlag = '';
+        if (isException && EXC_META[stage]) {
+          const m = EXC_META[stage];
+          workflowFlag = '<div class="workflow-flag workflow-flag--' + m.kind + '">' +
+            '<i class="ph ph-' + m.icon + '"></i><span class="workflow-flag__label">' + m.title + '</span>' +
+            '<span class="workflow-flag__body">' + m.body + '</span></div>';
+        }
+
+        // Alert
+        let alertHtml = '';
+        if (isException && EXC_META[stage]) {
+          const m = EXC_META[stage];
+          alertHtml = '<div class="alert alert--' + m.severity + '"><i class="ph ph-' + m.icon + '"></i>' +
+            '<div><div class="alert__title">' + m.title + '</div><div class="alert__body">' + m.body + '</div></div></div>';
+        } else if (stage === 'in_process' && !s.reviewer.name) {
+          alertHtml = '<div class="alert alert--warning"><i class="ph ph-warning-circle"></i>' +
+            '<div><div class="alert__title">Unassigned</div><div class="alert__body">Assign a lead reviewer to begin the approval process.</div></div></div>';
+        } else if (inReview) {
+          const od = s.approvals.filter((a) => a.status === 'overdue').map((a) => a.team);
+          if (od.length) {
+            alertHtml = '<div class="alert alert--warning"><i class="ph ph-warning-circle"></i>' +
+              '<div><div class="alert__title">Approval overdue</div><div class="alert__body">' +
+              od.join(', ') + ' approval is overdue. Send a reminder or record their decision.</div></div></div>';
+          }
+        } else if (stage === 'completed' && c.expiresDays != null && c.expiresDays <= 14) {
+          alertHtml = '<div class="alert alert--warning"><i class="ph ph-warning-circle"></i>' +
+            '<div><div class="alert__title">Expiring soon</div><div class="alert__body">Expires in ' +
+            c.expiresDays + ' days — start the renewal.</div></div></div>';
+        }
+
+        // Approvals panel
+        const done = s.approvals.filter((a) => a.status === 'approved').length;
+        const allDone = done === s.approvals.length;
+        const APPROVAL_BADGE = {
+          approved: { badge: 'live', label: 'Approved' },
+          pending: { badge: 'pending', label: 'Pending' },
+          overdue: { badge: 'failed', label: 'Overdue' },
+        };
+        let approvalsHtml = '<div class="approvals"><div class="approvals__head">' +
+          '<p class="approvals__title">Attorney approvals</p>' +
+          '<span class="approvals__progress">' +
+          (allDone ? '<i class="ph ph-check-circle"></i>' : '') +
+          done + ' of ' + s.approvals.length + ' complete</span></div>';
+        s.approvals.forEach((a) => {
+          const b = APPROVAL_BADGE[a.status];
+          approvalsHtml += '<div class="approval">' +
+            '<span class="approval__team">' + a.team + '</span>' +
+            '<span class="badge badge--' + b.badge + '">' + b.label + '</span>' +
+            (a.when ? '<span class="approval__meta">· ' + a.when + '</span>' : '') +
+            '<span class="approval__spacer"></span>';
+          if (inReview && a.status !== 'approved') {
+            approvalsHtml += '<div class="approval__actions">' +
+              '<button class="btn btn--secondary btn--sm" data-act="remind" data-team="' + a.team + '"><i class="ph ph-bell"></i>Send reminder</button>' +
+              '<button class="btn btn--secondary btn--sm" data-act="approve" data-team="' + a.team + '"><i class="ph ph-check"></i>Record approval</button>' +
+              '</div>';
+          }
+          approvalsHtml += '</div>';
+        });
+        approvalsHtml += '</div>';
+
+        // Tabs
+        const tabs = [
+          { value: 'details', label: 'Details' },
+          { value: 'documents', label: 'Documents (' + s.docs.length + ')' },
+          { value: 'comments', label: 'Comments (' + s.comments.length + ')' },
+          { value: 'notes', label: 'Notes (' + s.meetings.length + ')' },
+          { value: 'activity', label: 'Activity' },
+        ];
+        const tabsHtml = '<div class="tabs">' + tabs.map((t) =>
+          '<button class="tab' + (s.tab === t.value ? ' active' : '') + '" data-tab="' + t.value + '">' + t.label + '</button>'
+        ).join('') + '</div>';
+
+        // Tab content
+        let tabContent = '';
+        if (s.tab === 'details') {
+          const riskHtml = d.risk ? '<div class="def def--full"><div class="def__label">Risk review</div><div class="risk-row">' +
+            '<div><div class="def__label">Accesses personal data</div>' + (d.risk.personalData
+              ? '<span class="yn yn--yes"><i class="ph ph-warning-circle"></i>Yes</span>'
+              : '<span class="yn yn--no"><i class="ph ph-minus"></i>No</span>') + '</div>' +
+            '<div><div class="def__label">Accesses PHI</div>' + (d.risk.phi
+              ? '<span class="yn yn--yes"><i class="ph ph-warning-circle"></i>Yes</span>'
+              : '<span class="yn yn--no"><i class="ph ph-minus"></i>No</span>') + '</div>' +
+            '<div><div class="def__label">Uses AI</div>' + (d.risk.usesAI
+              ? '<span class="yn yn--yes"><i class="ph ph-warning-circle"></i>Yes</span>'
+              : '<span class="yn yn--no"><i class="ph ph-minus"></i>No</span>') + '</div>' +
+            '</div></div>' : '';
+          tabContent = '<div class="def-grid">' +
+            '<div class="def"><div class="def__label">Vendor</div><div class="def__value"><button class="vendor-link" data-vendor-modal="' + c.vendor.replace(/"/g, "&quot;") + '">' + c.vendor + '<i class="ph ph-arrow-up-right"></i></button></div></div>' +
+            '<div class="def"><div class="def__label">Category</div><div class="def__value">' + c.category + '</div></div>' +
+            (d.risk ? '<div class="def"><div class="def__label">IT type</div><div class="def__value">' + d.risk.type + '</div></div>' : '') +
+            '<div class="def"><div class="def__label">Contract value</div><div class="def__value">' + fmtUsd(c.value) + '</div></div>' +
+            '<div class="def"><div class="def__label">Term</div><div class="def__value">' + d.term + '</div></div>' +
+            '<div class="def"><div class="def__label">Requested by</div><div class="def__value">' + d.requester + '</div></div>' +
+            '<div class="def"><div class="def__label">Request date</div><div class="def__value">' + d.requestDate + '</div></div>' +
+            riskHtml +
+            '<div class="def def--full"><div class="def__label">Description</div><p class="def__desc">' + d.description + '</p></div>' +
+            '</div>';
+        } else if (s.tab === 'documents') {
+          tabContent = '<div class="section-bar"><h2>Documents</h2>' +
+            '<button class="btn btn--secondary btn--sm" data-act="attach"><i class="ph ph-paperclip"></i>Attach document</button></div>' +
+            '<div class="doc-list">' + s.docs.map((doc) =>
+              '<div class="doc"><i class="ph ph-file-text doc__icon"></i>' +
+              '<div class="doc__main"><div class="doc__name">' + doc.name + '</div>' +
+              '<div class="doc__meta">Updated ' + doc.updated + ' · ' + doc.by + '</div></div>' +
+              '<span class="doc__ver">' + doc.version + (doc.versions > 1 ? ' · ' + doc.versions + ' versions' : '') + '</span>' +
+              '<button class="icon-btn" aria-label="Download ' + doc.name + '"><i class="ph ph-download-simple"></i></button>' +
+              '</div>'
+            ).join('') + '</div>';
+        } else if (s.tab === 'comments') {
+          tabContent = s.comments.map((m) =>
+            '<div class="comment"><div class="avatar avatar--sm">' + m.author.split(' ').map((x) => x[0]).join('').slice(0,2) + '</div>' +
+            '<div class="comment__body"><div class="comment__head">' +
+            '<span class="comment__author">' + m.author + '</span>' +
+            '<span class="comment__role">' + m.role + '</span>' +
+            '<span class="comment__when">' + m.when + '</span></div>' +
+            '<p class="comment__text">' + m.text + '</p></div></div>'
+          ).join('') +
+            '<div class="comment-form">' +
+            '<textarea id="comment-input" placeholder="Add an internal note for the review team"></textarea>' +
+            '<div style="display:flex;justify-content:flex-end"><button class="btn" data-act="comment-submit"><i class="ph ph-paper-plane-tilt"></i>Add comment</button></div>' +
+            '</div>';
+        } else if (s.tab === 'notes') {
+          const NOTE_ICON = { Meeting: 'users-three', Call: 'phone', Email: 'envelope-simple', Note: 'note-pencil' };
+          tabContent = '<div class="notes-list">' + (s.meetings.length === 0
+            ? '<p class="notes-empty">No discussion logged yet. Record a meeting, call, or note to keep the running history on this contract.</p>'
+            : s.meetings.map((m) =>
+                '<div class="note"><div class="note__head">' +
+                '<span class="note-type note-type--' + m.type.toLowerCase() + '"><i class="ph ph-' + (NOTE_ICON[m.type] || 'note') + '"></i>' + m.type + '</span>' +
+                '<span class="note__date">' + m.date + '</span>' +
+                (m.participants ? '<span class="note__people"><i class="ph ph-users"></i>' + m.participants + '</span>' : '') +
+                '</div><p class="note__text">' + m.text + '</p></div>'
+              ).join('')) + '</div>' +
+            '<div class="note-form"><div class="section-bar"><h2>Log a discussion</h2></div>' +
+            '<div class="note-form__row">' +
+            '<select id="note-type"><option>Meeting</option><option>Call</option><option>Email</option><option>Note</option></select>' +
+            '<input type="date" id="note-date" value="' + todayISO() + '" />' +
+            '<input id="note-people" placeholder="Participants (optional)" />' +
+            '</div>' +
+            '<textarea id="note-text" placeholder="What was discussed, and what was decided?"></textarea>' +
+            '<div style="display:flex;justify-content:flex-end"><button class="btn" data-act="note-submit"><i class="ph ph-plus"></i>Add note</button></div>' +
+            '</div>';
+        } else if (s.tab === 'activity') {
+          tabContent = '<div class="timeline">' + s.activity.map((a) =>
+            '<div class="tl"><span class="tl__icon"><i class="ph ph-' + a.icon + '"></i></span>' +
+            '<div class="tl__main"><div class="tl__text">' + a.text + '</div><div class="tl__when">' + a.when + '</div></div></div>'
+          ).join('') + '</div>';
+        }
+
+        // Right rail
+        const dueDays = s.nextDueISO ? daysFromToday(s.nextDueISO) : null;
+        const dueClosed = ['canceled','terminated','completed'].indexOf(stage) !== -1;
+        const dueOverdue = dueDays != null && dueDays < 0 && !dueClosed;
+        const dueRel = dueDays == null ? null
+          : dueDays < 0 ? (-dueDays) + (dueDays === -1 ? ' day' : ' days') + ' overdue'
+          : dueDays === 0 ? 'Due today'
+          : 'in ' + dueDays + (dueDays === 1 ? ' day' : ' days');
+
+        const statusOptions = Object.keys(STAGES).map((id) =>
+          '<option value="' + id + '"' + (id === stage ? ' selected' : '') + '>' + STAGES[id].label + '</option>'
+        ).join('');
+
+        let primaryBtn;
+        if (stage === 'completed' || stage === 'expired') {
+          primaryBtn = '<button class="btn btn--secondary" data-act="renew"><i class="ph ph-arrows-clockwise"></i>Start renewal</button>';
+        } else if (stage === 'on_hold') {
+          primaryBtn = '<button class="btn" data-act="resume"><i class="ph ph-play"></i>Resume review</button>';
+        } else if (stage === 'canceled' || stage === 'terminated') {
+          primaryBtn = '<button class="btn btn--secondary" data-act="reopen"><i class="ph ph-arrow-counter-clockwise"></i>Reopen contract</button>';
+        } else {
+          const lbl = next && next.id === 'completed' ? 'Mark completed' : 'Advance to ' + next.label;
+          primaryBtn = '<button class="btn" data-act="advance"' + (blocked ? ' disabled' : '') + '><i class="ph ph-arrow-right"></i>' + lbl + '</button>' +
+            (blocked ? '<span class="advance-hint">' + outstanding + ' approval' + (outstanding === 1 ? '' : 's') + ' outstanding</span>' : '');
+        }
+
+        const railHtml = '<aside class="rail">' +
+          '<div class="rail-card">' +
+          '<p class="rail-card__eyebrow">Status</p>' +
+          '<div class="status-now"><span class="badge badge--' + info.badge + '">' + info.label + '</span></div>' +
+          '<select id="status-select">' + statusOptions + '</select>' +
+          '<p class="status-hint">Set any of the 13 contract statuses. Each change is recorded in the activity trail.</p>' +
+          '</div>' +
+          '<div class="rail-card">' +
+          '<p class="rail-card__eyebrow">Action dates</p>' +
+          '<div class="facts">' +
+          '<div class="fact"><span class="fact__k">Last action</span><span class="fact__v">' + fmtLong(s.lastActionISO) + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Next action due</span>' +
+          '<span class="fact__v' + (dueOverdue ? ' fact__v--overdue' : '') + '">' +
+          (dueOverdue ? '<i class="ph ph-warning-circle"></i>' : '') + fmtLong(s.nextDueISO) + '</span></div>' +
+          '</div>' +
+          (dueRel ? '<div class="due-rel' + (dueOverdue ? ' due-rel--overdue' : '') + '">' + dueRel + '</div>' : '') +
+          '</div>' +
+          '<div class="rail-card">' +
+          '<p class="rail-card__eyebrow">Lead reviewer</p>' +
+          '<div class="reviewer-block">' +
+          (s.reviewer.name
+            ? '<div class="avatar avatar--sm">' + s.reviewer.name.split(' ').map((x) => x[0]).join('').slice(0,2) + '</div>'
+            : '<div class="avatar avatar--sm"><i class="ph ph-user"></i></div>') +
+          '<div><div class="reviewer-block__name">' + (s.reviewer.name || 'Unassigned') + '</div>' +
+          '<div class="reviewer-block__team">' + (s.reviewer.team || 'No team') + '</div></div>' +
+          '</div>' +
+          '<button class="btn btn--secondary btn--sm" data-act="reassign"><i class="ph ph-user-switch"></i>' +
+          (s.reviewer.name ? 'Reassign reviewer' : 'Assign reviewer') + '</button>' +
+          '</div>' +
+          '<div class="rail-card">' +
+          '<p class="rail-card__eyebrow">Key facts</p>' +
+          '<div class="facts">' +
+          '<div class="fact"><span class="fact__k">Value</span><span class="fact__v">' + fmtUsd(c.value) + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Term</span><span class="fact__v" style="font-size:11px">' + d.term + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Requested by</span><span class="fact__v">' + d.requester + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Expires</span><span class="fact__v">' + (
+            stage === 'expired' || (c.expiresDays != null && c.expiresDays < 0) ? 'Expired' :
+            stage === 'canceled' || stage === 'terminated' ? '—' :
+            c.expiresDays != null ? 'in ' + c.expiresDays + ' days' : 'Not executed'
+          ) + '</span></div>' +
+          '</div>' +
+          '</div>' +
+          '</aside>';
+
+        document.getElementById('main').innerHTML =
+          '<button class="back-link" data-nav="dashboard"><i class="ph ph-arrow-left"></i>Active contracts</button>' +
+          '<div class="page-head">' +
+          '<div>' +
+          '<div class="detail-eyebrow"><span class="cell-mono">' + c.num + '</span><span class="detail-dot">·</span>' +
+          '<span class="cat"><i class="ph ph-' + CATEGORIES[c.category].icon + '"></i>' + c.category + '</span></div>' +
+          '<h1>' + c.title + '</h1>' +
+          '<div class="detail-sub">' +
+          '<button class="vendor-link" data-vendor-modal="' + c.vendor.replace(/"/g, "&quot;") + '">' + c.vendor + '<i class="ph ph-arrow-up-right"></i></button>' +
+          '<span class="detail-dot">·</span><span>' + fmtUsd(c.value) + '</span>' +
+          '<span class="badge badge--' + info.badge + '">' + info.label + '</span>' +
+          '</div></div>' +
+          '<div class="page-head__actions"><div class="advance-wrap">' + primaryBtn + '</div></div>' +
+          '</div>' +
+          alertHtml +
+          '<div class="detail-grid">' +
+          '<div>' +
+          '<div class="workflow"><p class="workflow__eyebrow">Review workflow</p>' +
+          '<div class="stepper' + (isException ? ' stepper--muted' : '') + '">' + stepperHtml + '</div>' +
+          workflowFlag + '</div>' +
+          approvalsHtml +
+          tabsHtml +
+          '<div class="form-card">' + tabContent + '</div>' +
+          '</div>' +
+          railHtml +
+          '</div>';
+
+        // Wire interactions
+        document.querySelectorAll('.tab').forEach((t) => {
+          t.addEventListener('click', () => { s.tab = t.dataset.tab; renderDetail(num); });
+        });
+        const statusSel = document.getElementById('status-select');
+        if (statusSel) statusSel.addEventListener('change', (e) => {
+          s.stage = e.target.value;
+          s.activity.unshift({ icon: 'flag', text: 'Status changed to ' + STAGES[s.stage].label, when: 'Just now' });
+          showToast('Status changed to ' + STAGES[s.stage].label + '.');
+          renderDetail(num);
+        });
+        document.querySelectorAll('[data-act]').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const act = btn.dataset.act;
+            if (act === 'advance' && next && !blocked) {
+              s.stage = next.id;
+              s.activity.unshift({ icon: 'arrow-right', text: 'Status changed to ' + STAGES[next.id].label, when: 'Just now' });
+              showToast('Advanced to ' + STAGES[next.id].label + '.');
+              renderDetail(num);
+            } else if (act === 'resume') {
+              s.stage = 'with_legal';
+              s.activity.unshift({ icon: 'play', text: 'Resumed review', when: 'Just now' });
+              showToast('Review resumed.'); renderDetail(num);
+            } else if (act === 'reopen') {
+              s.stage = 'in_process';
+              s.activity.unshift({ icon: 'arrow-counter-clockwise', text: 'Contract reopened', when: 'Just now' });
+              showToast('Contract reopened.'); renderDetail(num);
+            } else if (act === 'renew') {
+              showToast('Renewal started.');
+            } else if (act === 'approve') {
+              const team = btn.dataset.team;
+              s.approvals = s.approvals.map((a) => a.team === team ? Object.assign({}, a, { status: 'approved', when: 'Just now' }) : a);
+              s.activity.unshift({ icon: 'check-circle', text: team + ' approval recorded', when: 'Just now' });
+              showToast(team + ' approval recorded.'); renderDetail(num);
+            } else if (act === 'remind') {
+              const team = btn.dataset.team;
+              s.activity.unshift({ icon: 'bell', text: 'Reminder sent to ' + team, when: 'Just now' });
+              showToast('Reminder sent to ' + team + '.'); renderDetail(num);
+            } else if (act === 'reassign') {
+              const opts = REVIEWERS.map((r) => r.name + ' · ' + r.team).join('\n');
+              const pick = prompt('Reassign reviewer to:\n\n' + opts + '\n\nType the reviewer name:');
+              if (pick) {
+                const r = REVIEWERS.find((x) => x.name.toLowerCase() === pick.toLowerCase());
+                if (r) {
+                  s.reviewer = { name: r.name, team: r.team };
+                  s.activity.unshift({ icon: 'identification-badge', text: 'Reassigned to ' + r.name + ' · ' + r.team, when: 'Just now' });
+                  showToast('Reassigned to ' + r.name + '.'); renderDetail(num);
+                }
+              }
+            } else if (act === 'attach') {
+              s.docs.unshift({ name: 'New attachment', version: 'v1', versions: 1, updated: 'Today', by: 'Lisa Farkas' });
+              s.activity.unshift({ icon: 'paperclip', text: 'Document uploaded: New attachment v1', when: 'Just now' });
+              showToast('Document attached.'); renderDetail(num);
+            } else if (act === 'comment-submit') {
+              const t = document.getElementById('comment-input').value.trim();
+              if (t) {
+                s.comments.push({ author: 'Lisa Farkas', role: 'Procurement', when: 'Just now', text: t });
+                s.activity.unshift({ icon: 'chat-text', text: 'Comment added by Lisa Farkas', when: 'Just now' });
+                showToast('Comment added.'); renderDetail(num);
+              }
+            } else if (act === 'note-submit') {
+              const type = document.getElementById('note-type').value;
+              const date = document.getElementById('note-date').value;
+              const people = document.getElementById('note-people').value.trim();
+              const text = document.getElementById('note-text').value.trim();
+              if (text) {
+                s.meetings.unshift({ type, date: fmtLong(date), participants: people, text });
+                s.activity.unshift({ icon: 'notepad', text: type + ' note logged', when: 'Just now' });
+                showToast(type + ' note logged.'); renderDetail(num);
+              }
+            }
+          });
+        });
+      }
+
+      /* =====================================================================
+         Intake screens
+         ===================================================================== */
+      function renderIntake() {
+        document.getElementById('page-title').textContent = 'New contract';
+        document.getElementById('main').innerHTML =
+          '<button class="back-link" data-nav="dashboard"><i class="ph ph-arrow-left"></i>Active contracts</button>' +
+          '<div class="page-head"><div><h1>New contract intake</h1>' +
+          '<div class="subtitle">Pick the category that best fits this contract. Each category collects different fields.</div></div></div>' +
+          '<div class="category-grid">' +
+          '<button class="category-card" data-nav="intake-form/Event"><i class="ph ph-ticket"></i>' +
+          '<h3>Event</h3><p>Venues, catering, speakers, sponsorships — anything tied to an event date.</p></button>' +
+          '<button class="category-card" data-nav="intake-form/Facilities"><i class="ph ph-wrench"></i>' +
+          '<h3>Facilities</h3><p>Office services, maintenance, leases, security, building operations.</p></button>' +
+          '<button class="category-card" data-nav="intake-form/IT"><i class="ph ph-desktop"></i>' +
+          '<h3>IT</h3><p>Software licenses, hardware, integrations, hosting, professional services.</p></button>' +
+          '</div>';
+      }
+
+      let intakeState = {};
+      function renderIntakeForm(cat) {
+        document.getElementById('page-title').textContent = 'New ' + cat + ' contract';
+        if (!intakeState.cat || intakeState.cat !== cat) {
+          intakeState = {
+            cat, title: '', vendor: '', value: '', start: '', end: '', desc: '',
+            itType: '', deployment: '', seats: '', hosting: '',
+            engagement: '', scope: '', hours: '', onsite: null,
+            personalData: null, phi: null, usesAI: null,
+            requester: 'Lisa Farkas',
+          };
+        }
+        const st = intakeState;
+        const vendorOptions = Object.keys(VENDORS)
+          .filter((v) => VENDORS[v].category === cat || cat === 'IT')
+          .map((v) => '<option value="' + v + '"' + (st.vendor === v ? ' selected' : '') + '>' + v + '</option>').join('');
+
+        function yn(name, val) {
+          return '<div class="yn-radio">' +
+            '<label><input type="radio" name="' + name + '" data-yn="' + name + '" data-val="yes"' + (val === true ? ' checked' : '') + ' />Yes</label>' +
+            '<label><input type="radio" name="' + name + '" data-yn="' + name + '" data-val="no"' + (val === false ? ' checked' : '') + ' />No</label>' +
+            '</div>';
+        }
+
+        let categoryFields = '';
+        if (cat === 'IT') {
+          categoryFields = '<div class="form-section"><h2>IT contract type</h2>' +
+            '<div class="form-grid">' +
+            '<div class="field-block field-block--full">' +
+            '<label class="form-label">Contract type</label>' +
+            '<div class="yn-radio">' +
+            '<label><input type="radio" name="ittype" data-itt="Software"' + (st.itType === 'Software' ? ' checked' : '') + ' />Software / SaaS</label>' +
+            '<label><input type="radio" name="ittype" data-itt="Professional services"' + (st.itType === 'Professional services' ? ' checked' : '') + ' />Professional services</label>' +
+            '</div></div></div></div>';
+          if (st.itType === 'Software') {
+            categoryFields += '<div class="form-section"><h2>Software details</h2><div class="form-grid">' +
+              '<div class="field-block"><label class="form-label" for="deployment">Deployment</label>' +
+              '<select id="deployment" class="select" data-field="deployment">' +
+              '<option value="">Select...</option>' +
+              ['SaaS (vendor-hosted)','On-premise','Hybrid'].map((d) =>
+                '<option' + (st.deployment === d ? ' selected' : '') + '>' + d + '</option>').join('') +
+              '</select></div>' +
+              '<div class="field-block"><label class="form-label" for="seats">License seats</label>' +
+              '<input class="input" id="seats" type="number" min="1" inputmode="numeric" value="' + (st.seats || '') + '" data-field="seats" /></div>' +
+              '<div class="field-block field-block--full"><label class="form-label" for="hosting">Data hosting region</label>' +
+              '<select id="hosting" class="select" data-field="hosting">' +
+              '<option value="">Select...</option>' +
+              ['United States','European Union','Other / multi-region'].map((h) =>
+                '<option' + (st.hosting === h ? ' selected' : '') + '>' + h + '</option>').join('') +
+              '</select></div>' +
+              '</div></div>';
+          } else if (st.itType === 'Professional services') {
+            categoryFields += '<div class="form-section"><h2>Engagement details</h2><div class="form-grid">' +
+              '<div class="field-block"><label class="form-label" for="engagement">Engagement type</label>' +
+              '<select id="engagement" class="select" data-field="engagement">' +
+              '<option value="">Select...</option>' +
+              ['Fixed fee','Time & materials','Retainer'].map((e) =>
+                '<option' + (st.engagement === e ? ' selected' : '') + '>' + e + '</option>').join('') +
+              '</select></div>' +
+              '<div class="field-block"><label class="form-label" for="hours">Estimated hours</label>' +
+              '<input class="input" id="hours" type="number" min="1" inputmode="numeric" value="' + (st.hours || '') + '" data-field="hours" /></div>' +
+              '<div class="field-block field-block--full"><label class="form-label" for="scope">Scope of work</label>' +
+              '<textarea class="textarea" id="scope" data-field="scope" placeholder="What will the vendor deliver?">' + (st.scope || '') + '</textarea></div>' +
+              '<div class="field-block field-block--full"><label class="form-label">On-site access required?</label>' + yn('onsite', st.onsite) + '</div>' +
+              '</div></div>';
+          }
+          categoryFields += '<div class="form-section"><h2>Risk review</h2><div class="form-grid">' +
+            '<div class="field-block field-block--full">' +
+            '<label class="form-label">Accesses personal data</label>' +
+            '<span class="form-helper">Names, emails, addresses, IDs of firm personnel, clients, or third parties.</span>' +
+            yn('personalData', st.personalData) + '</div>' +
+            '<div class="field-block field-block--full">' +
+            '<label class="form-label">Accesses PHI</label>' +
+            '<span class="form-helper">Protected health information under HIPAA.</span>' +
+            yn('phi', st.phi) + '</div>' +
+            '<div class="field-block field-block--full">' +
+            '<label class="form-label">Uses AI or machine learning</label>' +
+            '<span class="form-helper">Includes LLMs, ML classifiers, generative models.</span>' +
+            yn('usesAI', st.usesAI) + '</div>' +
+            '</div></div>';
+        } else if (cat === 'Event') {
+          categoryFields = '<div class="form-section"><h2>Event details</h2><div class="form-grid">' +
+            '<div class="field-block"><label class="form-label" for="evdate">Event date</label>' +
+            '<input class="input" id="evdate" type="date" data-field="evdate" /></div>' +
+            '<div class="field-block"><label class="form-label" for="attendees">Expected attendees</label>' +
+            '<input class="input" id="attendees" type="number" min="1" inputmode="numeric" data-field="attendees" /></div>' +
+            '</div></div>';
+        } else if (cat === 'Facilities') {
+          categoryFields = '<div class="form-section"><h2>Facilities details</h2><div class="form-grid">' +
+            '<div class="field-block field-block--full"><label class="form-label" for="loc">Building / office</label>' +
+            '<select id="loc" class="select" data-field="loc">' +
+            ['444 W Lake Street — Chicago','One Vanderbilt — New York','500 N Capitol — Washington DC'].map((l) => '<option>' + l + '</option>').join('') +
+            '</select></div></div></div>';
+        }
+
+        const gates = ['GCO'];
+        if (cat === 'IT') gates.push('InfoSec');
+        if (st.personalData || st.phi) gates.push('Privacy');
+        const routingHtml = '<div class="review-routing">' +
+          '<div class="review-routing__title">Review routing</div>' +
+          'Based on your answers, this contract will route to: <strong>' + gates.join(', ') + '</strong>.' +
+          '</div>';
+
+        document.getElementById('main').innerHTML =
+          '<button class="back-link" data-nav="intake"><i class="ph ph-arrow-left"></i>Choose another category</button>' +
+          '<div class="page-head"><div>' +
+          '<p class="intake-eyebrow"><i class="ph ph-' + CATEGORIES[cat].icon + '"></i>' + cat + ' contract</p>' +
+          '<h1>New contract intake</h1>' +
+          '<div class="subtitle">Capture everything Procurement needs to begin review.</div>' +
+          '</div></div>' +
+          '<div class="form-card">' +
+          '<div class="form-section"><h2>Basics</h2><div class="form-grid">' +
+          '<div class="field-block field-block--full"><label class="form-label" for="title">Contract title</label>' +
+          '<input class="input" id="title" required maxlength="200" placeholder="e.g. Vendor name — purpose" value="' + (st.title || '') + '" data-field="title" /></div>' +
+          '<div class="field-block"><label class="form-label" for="vendor">Vendor</label>' +
+          '<select class="select" id="vendor" data-field="vendor"><option value="">Select...</option>' + vendorOptions + '</select>' +
+          '<span class="form-helper">Can\'t find them? <a href="#vendors">Add a new vendor</a>.</span></div>' +
+          '<div class="field-block"><label class="form-label" for="cost">Total value (USD)</label>' +
+          '<input class="input" id="cost" type="number" inputmode="numeric" min="0" required value="' + (st.value || '') + '" data-field="value" /></div>' +
+          '<div class="field-block"><label class="form-label" for="start">Term start</label>' +
+          '<input class="input" id="start" type="date" required value="' + (st.start || '') + '" data-field="start" /></div>' +
+          '<div class="field-block"><label class="form-label" for="end">Term end</label>' +
+          '<input class="input" id="end" type="date" required value="' + (st.end || '') + '" data-field="end" /></div>' +
+          '<div class="field-block field-block--full"><label class="form-label" for="desc">Description</label>' +
+          '<textarea class="textarea" id="desc" required maxlength="2000" placeholder="What is this contract for? Procurement uses this to decide who reviews it." data-field="desc">' + (st.desc || '') + '</textarea></div>' +
+          '</div></div>' +
+          categoryFields +
+          routingHtml +
+          '<div class="form-actions">' +
+          '<a class="btn btn--secondary" href="#intake">Cancel</a>' +
+          '<button class="btn" id="submit-intake"><i class="ph ph-paper-plane-tilt"></i>Submit for review</button>' +
+          '</div></div>';
+
+        // Wire field changes
+        document.querySelectorAll('[data-field]').forEach((el) => {
+          const handler = () => { st[el.dataset.field] = el.value; };
+          el.addEventListener('input', handler); el.addEventListener('change', handler);
+        });
+        document.querySelectorAll('[data-itt]').forEach((el) => {
+          el.addEventListener('change', () => { st.itType = el.dataset.itt; renderIntakeForm(cat); });
+        });
+        document.querySelectorAll('[data-yn]').forEach((el) => {
+          el.addEventListener('change', () => {
+            st[el.dataset.yn] = el.dataset.val === 'yes'; renderIntakeForm(cat);
+          });
+        });
+        document.getElementById('submit-intake').addEventListener('click', () => {
+          go('dashboard'); showToast('Contract submitted. Procurement notified.');
+        });
+      }
+
+      /* =====================================================================
+         Vendors
+         ===================================================================== */
+      let vendorState = { query: '', filter: 'all', sort: { key: 'name', dir: 'asc' } };
+
+      function renderVendors() {
+        document.getElementById('page-title').textContent = 'Vendors';
+        const rows = Object.keys(VENDORS).map((name) => {
+          const v = VENDORS[name];
+          const cs = CONTRACTS.filter((c) => c.vendor === name);
+          const active = cs.filter((c) => CLOSED_STAGES.indexOf(c.stage) === -1).length;
+          const value = cs.reduce((s, c) => s + c.value, 0);
+          return Object.assign({ name, contracts: cs, count: cs.length, active, value }, v);
+        });
+
+        let filtered = rows;
+        if (vendorState.filter !== 'all') filtered = filtered.filter((r) => r.status === vendorState.filter);
+        const q = vendorState.query.trim().toLowerCase();
+        if (q) filtered = filtered.filter((r) => (r.name + ' ' + r.contact + ' ' + r.location).toLowerCase().indexOf(q) !== -1);
+
+        if (vendorState.sort.key) {
+          const dir = vendorState.sort.dir === 'asc' ? 1 : -1;
+          filtered.sort((a, b) => {
+            const k = vendorState.sort.key;
+            let av, bv;
+            if (k === 'active' || k === 'value') { av = a[k]; bv = b[k]; }
+            else if (k === 'status') { av = VENDOR_STATUS_ORDER.indexOf(a.status); bv = VENDOR_STATUS_ORDER.indexOf(b.status); }
+            else { av = (a[k] || '').toString().toLowerCase(); bv = (b[k] || '').toString().toLowerCase(); }
+            if (av < bv) return -1 * dir; if (av > bv) return 1 * dir; return 0;
+          });
+        }
+
+        const filterChips = ['all'].concat(VENDOR_STATUS_ORDER).map((f) =>
+          '<button class="btn btn--secondary btn--sm" data-vfilter="' + f + '"' +
+          (vendorState.filter === f ? ' style="border-color:var(--accent-interactive);color:var(--accent-interactive)"' : '') + '>' +
+          (f === 'all' ? 'All' : f) + '</button>'
+        ).join('');
+
+        const tbody = filtered.length === 0
+          ? '<tr class="empty-row"><td colspan="6">No vendors match.</td></tr>'
+          : filtered.map((v) =>
+              '<tr data-vendor="' + v.name + '">' +
+              '<td><strong>' + v.name + '</strong></td>' +
+              '<td><span class="badge badge--' + VENDOR_BADGE[v.status] + '">' + v.status + '</span></td>' +
+              '<td><span class="cat"><i class="ph ph-' + CATEGORIES[v.category].icon + '"></i>' + v.category + '</span></td>' +
+              '<td>' + v.location + '</td>' +
+              '<td class="numeric">' + v.active + ' / ' + v.count + '</td>' +
+              '<td class="numeric">' + fmtUsd(v.value) + '</td>' +
+              '</tr>'
+            ).join('');
+
+        document.getElementById('main').innerHTML =
+          '<div class="page-head">' +
+          '<div><h1>Vendors</h1>' +
+          '<div class="subtitle">Vendor master used by every contract. Procurement maintains.</div></div>' +
+          '<button class="btn" data-bu-action="demo-toast" data-msg="New vendor flow not in demo."><i class="ph ph-plus"></i>Add vendor</button>' +
+          '</div>' +
+          '<div class="table-toolbar">' +
+          '<div class="table-search"><i class="ph ph-magnifying-glass"></i>' +
+          '<input type="search" id="vendor-search" placeholder="Search vendors" value="' + vendorState.query.replace(/"/g,'&quot;') + '" /></div>' +
+          '<div class="btn-row">' + filterChips + '</div>' +
+          '</div>' +
+          '<div class="table-shell"><table class="data-table"><thead><tr>' +
+          '<th class="sortable" data-vsort="name"><span class="th-inner">Vendor <i class="ph ph-' +
+          (vendorState.sort.key === 'name' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '<th class="sortable" data-vsort="status"><span class="th-inner">Status <i class="ph ph-' +
+          (vendorState.sort.key === 'status' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '<th class="sortable" data-vsort="category"><span class="th-inner">Category <i class="ph ph-' +
+          (vendorState.sort.key === 'category' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '<th class="sortable" data-vsort="location"><span class="th-inner">Location <i class="ph ph-' +
+          (vendorState.sort.key === 'location' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '<th class="sortable" data-vsort="active" style="text-align:right"><span class="th-inner" style="flex-direction:row-reverse">Active / All <i class="ph ph-' +
+          (vendorState.sort.key === 'active' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '<th class="sortable" data-vsort="value" style="text-align:right"><span class="th-inner" style="flex-direction:row-reverse">Total value <i class="ph ph-' +
+          (vendorState.sort.key === 'value' ? (vendorState.sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down') + '"></i></span></th>' +
+          '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+
+        document.querySelectorAll('[data-vfilter]').forEach((b) => {
+          b.addEventListener('click', () => { vendorState.filter = b.dataset.vfilter; renderVendors(); });
+        });
+        const vs = document.getElementById('vendor-search');
+        vs.addEventListener('input', (e) => {
+          vendorState.query = e.target.value; renderVendors();
+          setTimeout(() => { const s = document.getElementById('vendor-search'); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }, 0);
+        });
+        document.querySelectorAll('[data-vsort]').forEach((th) => {
+          th.addEventListener('click', () => {
+            const k = th.dataset.vsort;
+            vendorState.sort = { key: k, dir: vendorState.sort.key === k && vendorState.sort.dir === 'asc' ? 'desc' : 'asc' };
+            renderVendors();
+          });
+        });
+        document.querySelectorAll('tr[data-vendor]').forEach((tr) => {
+          tr.addEventListener('click', () => openVendorModal(tr.dataset.vendor));
+        });
+      }
+
+      function openVendorModal(name) {
+        const v = VENDORS[name]; if (!v) return;
+        const cs = CONTRACTS.filter((c) => c.vendor === name);
+        const slot = document.getElementById('modal-slot');
+        slot.innerHTML = '<div class="modal-scrim" data-close-modal="scrim">' +
+          '<div class="modal" data-stop="">' +
+          '<div class="modal__head"><div class="modal__title">' + name + '</div>' +
+          '<button class="icon-btn" data-close-modal="" aria-label="Close"><i class="ph ph-x"></i></button></div>' +
+          '<div class="modal__body">' +
+          '<div class="vmodal__statusline">' +
+          '<span class="badge badge--' + VENDOR_BADGE[v.status] + '">' + v.status + '</span>' +
+          '<span class="vmodal__since">Vendor since ' + v.since + '</span>' +
+          '</div>' +
+          '<p class="vmodal__note">' + v.note + '</p>' +
+          '<div class="vmodal__facts">' +
+          '<div class="fact"><span class="fact__k">Primary contact</span><span class="fact__v">' + v.contact + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Email</span><span class="fact__v" style="font-size:11px">' + v.email + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Phone</span><span class="fact__v">' + v.phone + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Location</span><span class="fact__v">' + v.location + '</span></div>' +
+          '<div class="fact"><span class="fact__k">Primary category</span><span class="fact__v">' + v.category + '</span></div>' +
+          '</div>' +
+          '<p class="vmodal__sectiontitle">Contracts in Contract Manager (' + cs.length + ')</p>' +
+          (cs.length === 0
+            ? '<p style="color:var(--text-secondary);text-align:center;padding:var(--space-4)">No contracts on record for this vendor.</p>'
+            : cs.map((c) =>
+                '<button class="vmodal-contract" data-close-modal="and-nav" data-nav-target="detail/' + c.num + '">' +
+                '<span class="vmodal-contract__main">' +
+                '<span class="vmodal-contract__title">' + c.title + '</span>' +
+                '<span class="vmodal-contract__num">' + c.num + '</span></span>' +
+                '<span class="badge badge--' + STAGES[c.stage].badge + '">' + STAGES[c.stage].label + '</span>' +
+                '<i class="ph ph-arrow-right"></i>' +
+                '</button>'
+              ).join('')) +
+          '<p class="vmodal__scope"><i class="ph ph-info"></i>Full vendor history, documents, and contacts live in the Vendor Detail screen.</p>' +
+          '</div></div></div>';
+      }
+      window.openVendorModal = openVendorModal;
+      function closeModal(e) {
+        if (e && e.target && !e.target.classList.contains('modal-scrim')) return;
+        document.getElementById('modal-slot').innerHTML = '';
+      }
+      window.closeModal = closeModal;
+
+      /* =====================================================================
+         Bulk upload
+         ===================================================================== */
+      const BU_CATEGORIES = ['Event','Facilities','IT'];
+      const BU_RAW = [
+        { title: 'Carbon copier maintenance',      vendor: 'Canon Business Solutions', category: 'Facilities', value: '24000',  start: '2026-08-01', end: '2027-08-01' },
+        { title: 'eDiscovery overflow processing', vendor: 'Relativity ODA LLC',       category: 'IT',         value: '88000',  start: '2026-07-15', end: '2027-07-15' },
+        { title: 'Summer associate mixer',         vendor: 'Halcyon Events Group',     category: 'Event',      value: 'TBD',    start: '2026-06-20', end: '2026-06-21' },
+        { title: 'Endpoint security renewal',      vendor: 'Exterro, Inc.',            category: 'Tech',       value: '142000', start: '2026-09-01', end: '2027-09-01' },
+        { title: 'Cloud backup retainer',          vendor: 'Microsoft Corp',           category: 'IT',         value: '67000',  start: '2026-10-01', end: '2027-10-01' },
+        { title: '',                               vendor: 'Bright Bean Services',     category: 'Facilities', value: '12000',  start: '2026-07-01', end: '2027-07-01' },
+        { title: 'Townhall AV rental',             vendor: 'Lumen Productions',        category: 'Event',      value: '34000',  start: '2026-11-10', end: '2026-10-10' },
+        { title: 'Records shredding addendum',     vendor: 'SecureShred Partners',     category: 'Facilities', value: '9000',   start: '2026-08-15', end: '' },
+        { title: 'Research platform seats',        vendor: 'Thomson Reuters',          category: 'IT',         value: '210000', start: '2026-09-30', end: '2027-09-30' },
+        { title: 'Lobby plant refresh',            vendor: 'Atrium Build',             category: 'Facilites',  value: '4500',   start: '2026-08-05', end: '2027-08-05' },
+        { title: 'Managed print toner program',    vendor: 'Canon Business Solutions', category: 'Facilities', value: '15000',  start: '2026-12-01', end: '2027-12-01' },
+        { title: 'AI research pilot extension',    vendor: 'Harvey AI, Inc.',          category: 'IT',         value: '$120,000', start: '2026-08-20', end: '2027-08-20' },
+      ];
+      let buState = { uploaded: false, rows: [], editing: null };
+      function buInit() {
+        buState.rows = BU_RAW.map((r, i) => ({ id: i, fields: Object.assign({}, r), skipped: false }));
+      }
+      buInit();
+      function buFieldError(key, fields, vSet) {
+        const val = fields[key];
+        if (key === 'title') return val.trim() ? null : 'Missing title';
+        if (key === 'vendor') { if (!val.trim()) return 'Missing vendor'; return vSet.has(val) ? null : 'Unknown vendor'; }
+        if (key === 'category') return BU_CATEGORIES.indexOf(val) !== -1 ? null : 'Unknown category';
+        if (key === 'value') { const n = Number(String(val).replace(/[$,\s]/g, '')); return (val !== '' && !isNaN(n) && n > 0) ? null : 'Invalid amount'; }
+        if (key === 'start' || key === 'end') {
+          if (!val) return 'Missing date';
+          if (isNaN(new Date(val + 'T00:00:00'))) return 'Invalid date';
+          if (key === 'end' && fields.start && val < fields.start) return 'Ends before start';
+          return null;
+        }
+        return null;
+      }
+      function renderBulk() {
+        document.getElementById('page-title').textContent = 'Bulk upload';
+        if (!buState.uploaded) {
+          document.getElementById('main').innerHTML =
+            '<button class="back-link" data-nav="dashboard"><i class="ph ph-arrow-left"></i>Active contracts</button>' +
+            '<div class="page-head"><div><h1>Bulk upload</h1>' +
+            '<div class="subtitle">Seed Contract Manager from your legacy SpendConnect export. Preview, fix any flagged rows, then commit only the rows that resolve.</div></div></div>' +
+            '<div class="dropzone"><i class="ph ph-upload-simple"></i>' +
+            '<h2>Drop SpendConnect_export.csv here</h2>' +
+            '<p>Or use the button below to simulate an upload of the sample export.</p>' +
+            '<button class="btn" data-bu-action="upload"><i class="ph ph-file-arrow-up"></i>Simulate upload</button>' +
+            '</div>';
+          return;
+        }
+        const COLS = [
+          { key: 'title', label: 'Contract title' },
+          { key: 'vendor', label: 'Vendor' },
+          { key: 'category', label: 'Category' },
+          { key: 'value', label: 'Value' },
+          { key: 'start', label: 'Start' },
+          { key: 'end', label: 'End' },
+        ];
+        const vSet = new Set(Object.keys(VENDORS));
+        const total = buState.rows.length;
+        let withErrors = 0, ready = 0, skipped = 0;
+        buState.rows.forEach((r) => {
+          if (r.skipped) { skipped++; return; }
+          const errs = COLS.reduce((n, c) => n + (buFieldError(c.key, r.fields, vSet) ? 1 : 0), 0);
+          if (errs > 0) withErrors++; else ready++;
+        });
+
+        function cellHtml(r, col) {
+          const err = buFieldError(col.key, r.fields, vSet);
+          const isEditing = buState.editing && buState.editing.id === r.id && buState.editing.key === col.key;
+          if (isEditing && !r.skipped) {
+            if (col.key === 'vendor') {
+              return '<td class="bu-cell--editing"><select autofocus data-commit="' + r.id + ',' + col.key + '">' +
+                '<option value="">Select...</option>' +
+                Object.keys(VENDORS).map((v) => '<option value="' + v + '"' + (v === r.fields[col.key] ? ' selected' : '') + '>' + v + '</option>').join('') +
+                '</select></td>';
+            }
+            if (col.key === 'category') {
+              return '<td class="bu-cell--editing"><select autofocus data-commit="' + r.id + ',' + col.key + '">' +
+                BU_CATEGORIES.map((c) => '<option value="' + c + '"' + (c === r.fields[col.key] ? ' selected' : '') + '>' + c + '</option>').join('') +
+                '</select></td>';
+            }
+            const t = col.key === 'value' ? 'number' : (col.key === 'start' || col.key === 'end') ? 'date' : 'text';
+            return '<td class="bu-cell--editing"><input autofocus type="' + t + '" value="' + (r.fields[col.key] || '').replace(/"/g,'&quot;') + '" data-commit="' + r.id + ',' + col.key + '" /></td>';
+          }
+          const val = r.fields[col.key];
+          let display = val || '—';
+          if (col.key === 'value' && val) {
+            const n = Number(String(val).replace(/[$,\s]/g, ''));
+            display = (!isNaN(n) && n > 0) ? fmtUsd(n) : (val || '—');
+          } else if ((col.key === 'start' || col.key === 'end') && val) {
+            display = fmtShort(val);
+          }
+          return '<td class="' + (err ? 'bu-cell--error' : '') + '" data-edit="' + r.id + ',' + col.key + '">' +
+            display + (err ? '<span class="bu-err-msg">' + err + '</span>' : '') + '</td>';
+        }
+
+        const tbody = buState.rows.map((r) => {
+          const errs = COLS.reduce((n, c) => n + (buFieldError(c.key, r.fields, vSet) ? 1 : 0), 0);
+          return '<tr class="' + (r.skipped ? 'bu-row--skipped' : '') + '">' +
+            COLS.map((c) => cellHtml(r, c)).join('') +
+            '<td><button class="btn btn--secondary btn--sm" data-skip="' + r.id + '">' +
+            (r.skipped ? 'Restore' : 'Skip') + '</button></td>' +
+            '</tr>';
+        }).join('');
+
+        document.getElementById('main').innerHTML =
+          '<button class="back-link" data-bu-action="reset"><i class="ph ph-arrow-left"></i>Upload a different file</button>' +
+          '<div class="page-head"><div><h1>Preview &amp; fix — SpendConnect_export_2026.csv</h1>' +
+          '<div class="subtitle">' + total + ' rows parsed. Click any flagged cell to fix it inline, or skip the row.</div></div>' +
+          '<div><button class="btn"' + (ready === 0 ? ' disabled' : '') + ' id="commit-btn">' +
+          '<i class="ph ph-check"></i>Commit ' + ready + ' row' + (ready === 1 ? '' : 's') + '</button></div>' +
+          '</div>' +
+          '<div class="bu-stats">' +
+          '<div class="bu-stat"><div class="bu-stat__k">Total</div><div class="bu-stat__v">' + total + '</div></div>' +
+          '<div class="bu-stat bu-stat--ok"><div class="bu-stat__k">Ready</div><div class="bu-stat__v">' + ready + '</div></div>' +
+          '<div class="bu-stat bu-stat--err"><div class="bu-stat__k">With errors</div><div class="bu-stat__v">' + withErrors + '</div></div>' +
+          '<div class="bu-stat"><div class="bu-stat__k">Skipped</div><div class="bu-stat__v">' + skipped + '</div></div>' +
+          '</div>' +
+          '<div class="table-shell"><table class="data-table bu-table"><thead><tr>' +
+          COLS.map((c) => '<th>' + c.label + '</th>').join('') +
+          '<th>Action</th>' +
+          '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+
+        document.querySelectorAll('[data-edit]').forEach((td) => {
+          td.addEventListener('click', () => {
+            const [id, key] = td.dataset.edit.split(',');
+            buState.editing = { id: +id, key };
+            renderBulk();
+            setTimeout(() => {
+              const el = document.querySelector('[data-commit]');
+              if (el) { el.focus(); if (el.select) el.select(); }
+            }, 0);
+          });
+        });
+        document.querySelectorAll('[data-commit]').forEach((el) => {
+          const commit = () => {
+            const [id, key] = el.dataset.commit.split(',');
+            const row = buState.rows.find((r) => r.id === +id);
+            if (row) row.fields[key] = el.value;
+            buState.editing = null; renderBulk();
+          };
+          el.addEventListener('blur', commit);
+          el.addEventListener('change', commit);
+          el.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { buState.editing = null; renderBulk(); } });
+        });
+        document.querySelectorAll('[data-skip]').forEach((b) => {
+          b.addEventListener('click', () => {
+            const r = buState.rows.find((x) => x.id === +b.dataset.skip);
+            if (r) r.skipped = !r.skipped;
+            renderBulk();
+          });
+        });
+        const commitBtn = document.getElementById('commit-btn');
+        if (commitBtn) commitBtn.addEventListener('click', () => {
+          go('dashboard'); showToast(ready + ' row' + (ready === 1 ? '' : 's') + ' committed to Contract Manager.');
+          buInit(); buState.uploaded = false;
+        });
+      }
+
+      /* =====================================================================
+         Archive + My submissions
+         ===================================================================== */
+      function renderArchive() {
+        document.getElementById('page-title').textContent = 'Archive';
+        const archived = CONTRACTS.filter((c) => ['expired','terminated','canceled','completed'].indexOf(c.stage) !== -1);
+        const tbody = archived.length === 0
+          ? '<tr class="empty-row"><td colspan="6">No archived contracts.</td></tr>'
+          : archived.map((c) => {
+              const info = STAGES[c.stage];
+              return '<tr data-nav="detail/' + c.num + '">' +
+                '<td><span class="cell-name">' + c.title + '<span class="cell-num">' + c.num + '</span></span></td>' +
+                '<td>' + c.vendor + '</td>' +
+                '<td><span class="cat"><i class="ph ph-' + CATEGORIES[c.category].icon + '"></i>' + c.category + '</span></td>' +
+                '<td><span class="badge badge--' + info.badge + '">' + info.label + '</span></td>' +
+                '<td class="numeric">' + fmtUsd(c.value) + '</td>' +
+                '<td>' + fmtShort(actionDates(c).lastActionISO) + '</td>' +
+                '</tr>';
+            }).join('');
+        document.getElementById('main').innerHTML =
+          '<div class="page-head"><div><h1>Archive</h1>' +
+          '<div class="subtitle">Completed, expired, canceled, and terminated contracts.</div></div></div>' +
+          '<div class="table-shell"><table class="data-table"><thead><tr>' +
+          '<th>Contract</th><th>Vendor</th><th>Category</th><th>Final stage</th>' +
+          '<th class="numeric">Value</th><th>Closed</th>' +
+          '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+      }
+
+      function renderMySubmissions() {
+        document.getElementById('page-title').textContent = 'My submissions';
+        const mine = CONTRACTS.slice(0, 5);
+        const tbody = mine.map((c) => {
+          const info = STAGES[c.stage];
+          return '<tr data-nav="detail/' + c.num + '">' +
+            '<td><span class="cell-name">' + c.title + '<span class="cell-num">' + c.num + '</span></span></td>' +
+            '<td><span class="cat"><i class="ph ph-' + CATEGORIES[c.category].icon + '"></i>' + c.category + '</span></td>' +
+            '<td><span class="badge badge--' + info.badge + '">' + info.label + '</span></td>' +
+            '<td>' + (c.reviewer || '<span class="reviewer--none">Unassigned</span>') + '</td>' +
+            '<td class="numeric">' + fmtUsd(c.value) + '</td>' +
+            '</tr>';
+        }).join('');
+        document.getElementById('main').innerHTML =
+          '<div class="page-head">' +
+          '<div><h1>My submissions</h1>' +
+          '<div class="subtitle">Contracts you\'ve submitted for Procurement review.</div></div>' +
+          '<a class="btn" href="#intake"><i class="ph ph-plus"></i>New contract</a></div>' +
+          '<div class="table-shell"><table class="data-table"><thead><tr>' +
+          '<th>Contract</th><th>Category</th><th>Stage</th><th>Reviewer</th><th class="numeric">Value</th>' +
+          '</tr></thead><tbody>' + tbody + '</tbody></table></div>';
+      }
+
+      /* =====================================================================
+         Theme + toast + dispatch
+         ===================================================================== */
+      function showToast(msg) {
+        const slot = document.getElementById('toast-slot');
+        slot.innerHTML = '<div class="toast"><i class="ph ph-check-circle" style="color:var(--color-success);font-size:18px"></i> ' + msg + '</div>';
+        setTimeout(() => { slot.innerHTML = ''; }, 4000);
+      }
+      window.showToast = showToast;
+
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        const root = document.documentElement;
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        document.getElementById('theme-icon').className = next === 'dark' ? 'ph ph-sun' : 'ph ph-moon';
+      });
+
+      function dispatch() {
+        try {
+          const { route, params } = parseHashOrState();
+          renderSidebar();
+          if (route === 'dashboard') renderDashboard();
+          else if (route === 'detail') renderDetail(params[0]);
+          else if (route === 'intake') renderIntake();
+          else if (route === 'intake-form') renderIntakeForm(params[0] || 'IT');
+          else if (route === 'vendors') renderVendors();
+          else if (route === 'bulk') renderBulk();
+          else if (route === 'archive') renderArchive();
+          else if (route === 'my-submissions') renderMySubmissions();
+          window.scrollTo(0, 0);
+        } catch (err) {
+          document.getElementById('main').innerHTML =
+            '<div style="padding:24px;background:#FFE2DE;border-left:4px solid #FF3333;color:#000042;border-radius:2px">' +
+            '<strong>Demo error.</strong> ' + (err && err.message ? err.message : String(err)) +
+            ' <a href="#dashboard" style="margin-left:8px">Back to dashboard</a></div>';
+        }
+      }
+
+      /* Event delegation — survives sandboxed iframes and re-renders. */
+      document.body.addEventListener('click', (e) => {
+        // Intercept any <a href="#route"> too, so sidebar/back links work even when
+        // hashchange doesn't fire (srcdoc iframes).
+        const a = e.target.closest('a[href^="#"]');
+        if (a) {
+          const route = a.getAttribute('href').slice(1);
+          if (route) { e.preventDefault(); go(route); return; }
+        }
+        const t = e.target.closest('[data-nav],[data-vendor-modal],[data-close-modal],[data-bu-action],[data-stop]');
+        if (!t) return;
+        if (t.hasAttribute('data-stop')) { e.stopPropagation(); return; }
+        if (t.hasAttribute('data-nav')) { go(t.getAttribute('data-nav')); return; }
+        if (t.hasAttribute('data-vendor-modal')) { openVendorModal(t.getAttribute('data-vendor-modal')); return; }
+        if (t.hasAttribute('data-close-modal')) {
+          const mode = t.getAttribute('data-close-modal');
+          if (mode === 'scrim' && e.target !== t) return;
+          if (mode === 'and-nav') { closeModal(); go(t.getAttribute('data-nav-target')); return; }
+          closeModal(); return;
+        }
+        if (t.hasAttribute('data-bu-action')) {
+          const a = t.getAttribute('data-bu-action');
+          if (a === 'upload') { buState.uploaded = true; renderBulk(); }
+          else if (a === 'reset') { buState.uploaded = false; renderBulk(); }
+          else if (a === 'demo-toast') { showToast(t.getAttribute('data-msg') || 'Not in demo.'); }
+        }
+      });
+
+      window.addEventListener('hashchange', dispatch);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', dispatch);
+      } else {
+        dispatch();
+      }
+    </script>
+  </body>
+</html>
