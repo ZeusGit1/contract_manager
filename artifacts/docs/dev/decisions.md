@@ -196,4 +196,30 @@ Format: one entry per decision, ADR-lite (≈ 5 lines each).
 
 ---
 
-*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 024.*
+## ADR-024 — Contract detail page composed from four scoped sub-components
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The contract detail screen grew during the contract-detail-polish change to include a status banner / workflow flag, an approvals panel, a right rail, and a forward/backward status changer with Resume/Reopen. A single component file would exceed the 250-line page limit and bury intent.
+**Decision:** Extracted four sub-components into `web/src/features/contracts/components/` — `StatusBanner`, `ApprovalsPanel`, `ContractDetailRail`, `StatusChanger`. The page file composes them; each subcomponent owns its own CSS module and a single responsibility.
+**Consequence:** The page file stays narrative — it's the orchestration layer — and each piece is independently testable. The detail screen still exceeds 200 lines (currently ~230) because it owns the tab-panel renderers, but that's covered by the documented page-component allowance with a justification comment in the file.
+
+## ADR-025 — Status dropdown allows arbitrary forward + OnHold; Resume/Reopen handled separately
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The prototype's status changer is a dropdown of reachable next states plus Resume/Reopen affordances when the contract is paused or closed. The production app previously offered a single "Advance to next stage" button, which couldn't express jumps (e.g. WithLegal → OutForSignature when an attorney waives a review).
+**Decision:** `StatusChanger` renders three shapes based on current status: (a) a `<select>` of forward stages plus `OnHold`, with an Apply button, for in-flow contracts; (b) a "Resume review" button (target `InProcess`) when `OnHold`; (c) a "Reopen contract" button (target `InProcess`) when `Completed`. All three call the existing `useUpdateStatus` mutation — no new endpoint.
+**Consequence:** Users can skip ahead or pause from a single control. Closed terminal states (`Canceled`, `Expired`, `Terminated`) don't get a Reopen button because the data model and business rules around those aren't part of this change — surface as a follow-up if needed.
+
+## ADR-026 — Approvals panel derives state from assignments + current contract status
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The prototype shows an "Attorney approvals" panel — Legal, GCO, InfoSec, Privacy — each with an approved / current / pending state and a reviewer name. The production schema has `ContractAssignment` rows (reviewer per team) but no per-stage "approved at" timestamp.
+**Decision:** Derive state without schema changes: a review stage is `approved` when its index in `FORWARD_STATUS_ORDER` precedes the contract's current status, `current` when it matches, `pending` otherwise. The reviewer comes from the most recent `ContractAssignment` matching that team (case-insensitive team-name normalisation).
+**Consequence:** No migration needed for the polish change. The trade-off: approvals "complete" the moment a contract advances past a stage, even if the reviewer never explicitly approved. If the business needs an explicit approval audit trail in the future, add an `ApprovalStageStatus` table — until then the lifecycle status is the source of truth, which matches how the prototype users were already reading the data.
+
+---
+
+*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 027.*
