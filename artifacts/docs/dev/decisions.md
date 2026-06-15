@@ -170,6 +170,30 @@ Format: one entry per decision, ADR-lite (≈ 5 lines each).
 **Decision:** Install `eslint-plugin-jsx-a11y` with `--legacy-peer-deps`. The plugin's runtime usage of ESLint's public API is stable across 9→10; the peer-dep constraint is conservative metadata. Revisit when the plugin publishes an ESLint-10-compatible version.
 **Consequence:** A jsx-a11y plugin version bump is on the maintenance list — track in this ADR and flip back to a strict resolution once released.
 
+### ADR-021 — Dashboard column sort runs server-side, not client-side
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The dashboard table grew column-sort support during the dashboard-polish change. The dashboard is paginated (50 rows default), so client-side sort would only reorder the current page — wrong for a user expecting "highest value first" across all active contracts.
+**Decision:** Sort runs server-side. Added `sortBy` + `sortDir` query parameters on `GET /api/contracts`, mapped to a fixed allow-list of columns inside `ApplySort`. The client passes `sortBy` only when the user actively sorted a column; cleared sort falls back to the original "next-due first" ordering.
+**Consequence:** Adds eight `OrderBy` branches to the service. The allow-list pattern keeps the API surface predictable and prevents arbitrary column expressions from the client. New columns need to be added explicitly to both the client `SortKey` union and the server's `ApplySort` switch.
+
+### ADR-022 — Triage counts shipped as a dedicated endpoint, not embedded in the list response
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** Each triage chip on the dashboard now shows a live count. Two options: extend the list response with counts (one fewer round-trip) or split into a dedicated `/triage-counts` endpoint.
+**Decision:** Dedicated endpoint at `GET /api/contracts/triage-counts`. Returns a single `TriageCountsDto` with all six counts.
+**Consequence:** One extra network call. Trade-off accepted because (a) counts are filter-independent — embedding in the list response would cause confusing payloads when the user filters by triage chip, (b) the counts query can be cached separately by TanStack Query, and (c) the list response stays single-purpose. The counts endpoint is cheap — six EF `CountAsync` calls against the same `IQueryable` source.
+
+### ADR-023 — Row DTO carries reviewer team derived from the latest assignment
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The dashboard row needs to display the reviewer's team (InfoSec, GCO, Privacy, etc.) as a sub-line under their name. The `Contract` entity has `AssignedReviewerUserId` but no team field — team lives on `ContractAssignment.ReviewerTeam`, the history table.
+**Decision:** The list projection looks up the most recent `ContractAssignment` for the current `AssignedReviewerUserId` and selects its `ReviewerTeam`. EF Core compiles this into a SQL `OUTER APPLY (SELECT TOP 1 …)`, which is index-friendly when `(ReviewerUserId, AssignedAt)` is indexed.
+**Consequence:** If `AssignedReviewerUserId` ever points at a user with no historical assignment row, `AssignedReviewerTeam` is null and the UI shows just the name. That is the right behavior — name without team is more honest than guessing. Performance is fine at Tier 1 scale (≤100 users, ≤50 rows per page).
+
 ---
 
-*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 021.*
+*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 024.*

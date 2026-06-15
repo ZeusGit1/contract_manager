@@ -21,13 +21,22 @@ public class ContractsController : ControllerBase
         [FromQuery] Domain.Category? category,
         [FromQuery] Guid? assigneeUserId,
         [FromQuery] string? query,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         CancellationToken cancellationToken = default)
     {
-        var filter = new ContractListFilter(triage, category, assigneeUserId, query);
+        var filter = new ContractListFilter(triage, category, assigneeUserId, query, sortBy, sortDir);
         var result = await _service.ListAsync(filter, page, pageSize, cancellationToken).ConfigureAwait(false);
         return Ok(result);
+    }
+
+    [HttpGet("triage-counts")]
+    public async Task<ActionResult<TriageCountsDto>> TriageCounts(CancellationToken cancellationToken = default)
+    {
+        var counts = await _service.GetTriageCountsAsync(cancellationToken).ConfigureAwait(false);
+        return Ok(counts);
     }
 
     [HttpGet("archive")]

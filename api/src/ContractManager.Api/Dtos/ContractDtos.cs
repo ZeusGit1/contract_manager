@@ -12,6 +12,7 @@ public record ContractRowDto(
     string VendorName,
     int VendorId,
     string? AssignedReviewerName,
+    string? AssignedReviewerTeam,
     Guid? AssignedReviewerUserId,
     decimal? TotalCostUsd,
     DateTime? TermEndDate,
@@ -19,6 +20,14 @@ public record ContractRowDto(
     DateTime? NextActionDueAt,
     bool NeedsAttention,
     string? AttentionReason);
+
+public record TriageCountsDto(
+    int All,
+    int Action,
+    int Review,
+    int Sign,
+    int Expiring,
+    int Closed);
 
 public record ContractDetailDto(
     int ContractId,

@@ -9,6 +9,7 @@ namespace ContractManager.Api.Services;
 public interface IContractService
 {
     Task<PagedResult<ContractRowDto>> ListAsync(ContractListFilter filter, int page, int pageSize, CancellationToken ct);
+    Task<TriageCountsDto> GetTriageCountsAsync(CancellationToken ct);
     Task<PagedResult<ContractRowDto>> ListArchiveAsync(string? query, int? year, int page, int pageSize, CancellationToken ct);
     Task<PagedResult<RenewalRowDto>> ListRenewalsAsync(int windowDays, Category? category, Guid? reviewerUserId, int page, int pageSize, CancellationToken ct);
     Task<ContractDetailDto?> GetAsync(int contractId, CancellationToken ct);
@@ -19,7 +20,7 @@ public interface IContractService
     Task<bool> SoftDeleteAsync(int contractId, CancellationToken ct);
 }
 
-public record ContractListFilter(string? Triage, Category? Category, Guid? AssigneeUserId, string? Query);
+public record ContractListFilter(string? Triage, Category? Category, Guid? AssigneeUserId, string? Query, string? SortBy = null, string? SortDir = null);
 
 public class ContractService : IContractService
 {
@@ -81,10 +82,9 @@ public class ContractService : IContractService
         var total = await queryable.CountAsync(ct).ConfigureAwait(false);
         var today = _clock.UtcNow.Date;
 
+        queryable = ApplySort(queryable, filter.SortBy, filter.SortDir);
+
         var rows = await queryable
-            .OrderBy(c => c.NextActionDueAt == null)
-            .ThenBy(c => c.NextActionDueAt)
-            .ThenBy(c => c.ContractId)
             .Skip((clampedPage - 1) * clampedSize)
             .Take(clampedSize)
             .Select(c => new ContractRowDto(
@@ -96,6 +96,13 @@ public class ContractService : IContractService
                 c.Vendor!.Name,
                 c.VendorId,
                 c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName,
+                c.AssignedReviewerUserId == null
+                    ? null
+                    : c.Assignments
+                        .Where(a => a.ReviewerUserId == c.AssignedReviewerUserId)
+                        .OrderByDescending(a => a.AssignedAt)
+                        .Select(a => a.ReviewerTeam)
+                        .FirstOrDefault(),
                 c.AssignedReviewerUserId,
                 c.TotalCostUsd,
                 c.TermEndDate,
@@ -108,6 +115,55 @@ public class ContractService : IContractService
             .ToListAsync(ct).ConfigureAwait(false);
 
         return new PagedResult<ContractRowDto>(rows, total, clampedPage, clampedSize);
+    }
+
+    public async Task<TriageCountsDto> GetTriageCountsAsync(CancellationToken ct)
+    {
+        var queryable = _access.ApplyListFilter(_db.Contracts.AsNoTracking())
+            .Where(c =>
+                c.Status != ContractStatus.Completed
+                && c.Status != ContractStatus.Canceled
+                && c.Status != ContractStatus.Expired
+                && c.Status != ContractStatus.Terminated);
+
+        var today = _clock.UtcNow.Date;
+        var soon = today.AddDays(ExpiringSoonDays);
+
+        var all = await queryable.CountAsync(ct).ConfigureAwait(false);
+        var action = await queryable.CountAsync(c =>
+            c.AssignedReviewerUserId == null
+            || (c.NextActionDueAt != null && c.NextActionDueAt < today), ct).ConfigureAwait(false);
+        var review = await queryable.CountAsync(c =>
+            c.Status == ContractStatus.WithLegal
+            || c.Status == ContractStatus.WithGCO
+            || c.Status == ContractStatus.WithInfoSec
+            || c.Status == ContractStatus.WithPrivacy, ct).ConfigureAwait(false);
+        var sign = await queryable.CountAsync(c => c.Status == ContractStatus.OutForSignature, ct).ConfigureAwait(false);
+        var expiring = await queryable.CountAsync(c =>
+            c.TermEndDate != null && c.TermEndDate >= today && c.TermEndDate <= soon, ct).ConfigureAwait(false);
+        var closed = await queryable.CountAsync(c => c.Status == ContractStatus.OnHold, ct).ConfigureAwait(false);
+
+        return new TriageCountsDto(all, action, review, sign, expiring, closed);
+    }
+
+    private static IQueryable<Contract> ApplySort(IQueryable<Contract> source, string? sortBy, string? sortDir)
+    {
+        var ascending = !string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        return sortBy?.ToLowerInvariant() switch
+        {
+            "title" => ascending ? source.OrderBy(c => c.Title) : source.OrderByDescending(c => c.Title),
+            "vendor" => ascending ? source.OrderBy(c => c.Vendor!.Name) : source.OrderByDescending(c => c.Vendor!.Name),
+            "category" => ascending ? source.OrderBy(c => c.Category) : source.OrderByDescending(c => c.Category),
+            "stage" => ascending ? source.OrderBy(c => c.Status) : source.OrderByDescending(c => c.Status),
+            "reviewer" => ascending
+                ? source.OrderBy(c => c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName)
+                : source.OrderByDescending(c => c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName),
+            "value" => ascending ? source.OrderBy(c => c.TotalCostUsd) : source.OrderByDescending(c => c.TotalCostUsd),
+            "expires" => ascending ? source.OrderBy(c => c.TermEndDate) : source.OrderByDescending(c => c.TermEndDate),
+            "lastaction" => ascending ? source.OrderBy(c => c.LastActionAt) : source.OrderByDescending(c => c.LastActionAt),
+            "nextdue" => ascending ? source.OrderBy(c => c.NextActionDueAt) : source.OrderByDescending(c => c.NextActionDueAt),
+            _ => source.OrderBy(c => c.NextActionDueAt == null).ThenBy(c => c.NextActionDueAt).ThenBy(c => c.ContractId),
+        };
     }
 
     public async Task<PagedResult<ContractRowDto>> ListArchiveAsync(
@@ -146,6 +202,13 @@ public class ContractService : IContractService
                 c.ContractId, c.ContractNumber, c.Title, c.Category, c.Status,
                 c.Vendor!.Name, c.VendorId,
                 c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName,
+                c.AssignedReviewerUserId == null
+                    ? null
+                    : c.Assignments
+                        .Where(a => a.ReviewerUserId == c.AssignedReviewerUserId)
+                        .OrderByDescending(a => a.AssignedAt)
+                        .Select(a => a.ReviewerTeam)
+                        .FirstOrDefault(),
                 c.AssignedReviewerUserId,
                 c.TotalCostUsd, c.TermEndDate, c.LastActionAt, c.NextActionDueAt,
                 false, null))
