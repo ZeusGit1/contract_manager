@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
+import { RoutingPreview } from './RoutingPreview';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
 import styles from './IntakeITScreen.module.css';
@@ -289,6 +290,17 @@ export function IntakeITScreen() {
           onChange={(value) => updateField('usesAI', value)}
         />
       </section>
+
+      <RoutingPreview
+        category="IT"
+        totalCostUsd={form.totalCostUsd ? Number(form.totalCostUsd) : null}
+        flags={{
+          cloudOrOnPrem: form.cloudOrOnPrem || null,
+          accessesPHI: form.accessesPHI,
+          accessesPersonalData: form.accessesPersonalData,
+          usesAI: form.usesAI,
+        }}
+      />
 
       <footer className={styles.footer}>
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>

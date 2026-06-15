@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  max-width: 720px;
+  max-width: 960px;
 }
 .title {
   font-family: var(--font-mix);
@@ -36,13 +36,6 @@
   justify-content: flex-end;
   flex-wrap: wrap;
 }
-.errorList {
-  background: var(--color-pale-orange);
-  color: var(--color-navy);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
-  border-radius: var(--radius);
-  border-left: 4px solid var(--color-error);
-}
 .success {
   background: var(--color-pale-success);
   color: var(--color-navy);
@@ -54,4 +47,167 @@
   color: var(--color-navy);
   padding: var(--space-3);
   border-radius: var(--radius);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: var(--space-3);
+}
+
+.stat,
+.statOk,
+.statWarn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.statOk {
+  border-color: var(--color-success);
+}
+
+.statWarn {
+  border-color: var(--color-orange);
+}
+
+.statKey {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.statValue {
+  font-family: var(--font-mix);
+  font-size: 24px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.tableShell {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: var(--bg-page);
+}
+
+.table th {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 5%;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+}
+
+.table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.rowNum {
+  color: var(--text-secondary);
+  font-size: 12px;
+  width: 48px;
+}
+
+.rowSkipped {
+  opacity: 0.4;
+}
+
+.cellClickable {
+  cursor: pointer;
+}
+
+.cellClickable:hover {
+  background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
+}
+
+.cellError {
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+}
+
+.cellValue {
+  display: block;
+}
+
+.cellErrorMsg {
+  display: block;
+  font-size: 11px;
+  color: var(--color-navy);
+  margin-top: var(--space-1);
+  font-weight: 500;
+}
+
+.cellEditing {
+  padding: 0;
+}
+
+.cellInput {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 2px solid var(--accent-interactive);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.cellInput:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.skipCell {
+  width: 96px;
+  text-align: right;
+}
+
+.skipButton {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.skipButton:hover {
+  border-color: var(--accent-interactive);
+  color: var(--accent-interactive);
+}
+
+.skipButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
