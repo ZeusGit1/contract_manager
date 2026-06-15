@@ -5,6 +5,7 @@ import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
+import { RoutingPreview } from './RoutingPreview';
 import styles from './IntakeITScreen.module.css';
 
 interface FormState {
@@ -185,6 +186,11 @@ export function IntakeEventScreen() {
           />
         </label>
       </section>
+
+      <RoutingPreview
+        category="Event"
+        totalCostUsd={form.totalCostUsd ? Number(form.totalCostUsd) : null}
+      />
 
       <footer className={styles.footer}>
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>

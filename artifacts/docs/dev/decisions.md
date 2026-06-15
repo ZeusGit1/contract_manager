@@ -222,4 +222,22 @@ Format: one entry per decision, ADR-lite (≈ 5 lines each).
 
 ---
 
-*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 027.*
+## ADR-027 — Routing preview is derived client-side; thresholds come from a single source
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The prototype shows a "Review routing" panel as the user fills in the intake form, so they understand which teams will look at the contract before submitting. The production API already routes contracts through stages based on the same field values when a contract is created.
+**Decision:** The `RoutingPreview` component derives the routing client-side from the form values: Legal always, GCO when `totalCostUsd >= 50_000`, InfoSec when `cloudOrOnPrem` is Cloud/Hybrid or `usesAI` is true, Privacy when `accessesPHI` or `accessesPersonalData` is true. This is presentation-only — the server still owns the authoritative routing call when the contract is created.
+**Consequence:** If the server's routing rules change, both the API logic and `RoutingPreview` need updating. We accept this duplication because (a) the preview is a hint, not a decision, (b) the values are simple and stable, and (c) the alternative — a server `/api/contracts/preview-routing` endpoint — is overkill for a UI hint. If the rules grow complex, replace this with a dedicated endpoint.
+
+## ADR-028 — Bulk upload inline-edit is client-only; server re-validates on commit
+
+**Date:** 2026-06-15
+**Status:** Accepted
+**Context:** The prototype lets the user click any cell in the bulk-upload preview, fix it inline, and commit only the rows that resolve. The production endpoint already accepts a `BulkUploadRowDto[]` on commit and re-validates server-side.
+**Decision:** `BulkUploadScreen` keeps the rows in local state and lets the user edit `contractTitle`, `vendorName`, `category`, and `totalCost` per cell. Skip and restore are also client-side. On commit the (possibly-edited) rows are POSTed to `/api/bulk-upload/commit`, which is the existing endpoint — no new server route, no new contract.
+**Consequence:** The client's error highlighting reads the original error strings from the preview response and matches them to columns by keyword (title/vendor/category/cost). After an edit, the original error still shows until the next preview — that's a small UX gap accepted in exchange for not re-calling the preview endpoint on every edit. Server-side validation on commit is the authoritative check; a row a user thinks they fixed may still fail there and surface in the commit response.
+
+---
+
+*Append new ADRs to this file as `/build` (and later `/review`) make non-obvious decisions. Use ADR-NNN starting from 029.*

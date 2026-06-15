@@ -5,6 +5,7 @@ import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
+import { RoutingPreview } from './RoutingPreview';
 import styles from './IntakeITScreen.module.css';
 
 interface FormState {
@@ -154,6 +155,11 @@ export function IntakeFacilitiesScreen() {
           />
         </label>
       </section>
+      <RoutingPreview
+        category="Facilities"
+        totalCostUsd={form.totalCostUsd ? Number(form.totalCostUsd) : null}
+      />
+
       <footer className={styles.footer}>
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>
           Cancel
