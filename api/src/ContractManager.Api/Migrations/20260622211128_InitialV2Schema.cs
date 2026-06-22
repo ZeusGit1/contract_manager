@@ -6,11 +6,35 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ContractManager.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialSchema : Migration
+    public partial class InitialV2Schema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "Categories",
+                columns: table => new
+                {
+                    CategoryId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Code = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Label = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    IconKey = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsSystemDefined = table.Column<bool>(type: "bit", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    CreatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    UpdatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Categories", x => x.CategoryId);
+                });
+
             migrationBuilder.CreateTable(
                 name: "ReminderSettings",
                 columns: table => new
@@ -84,6 +108,40 @@ namespace ContractManager.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CategoryFields",
+                columns: table => new
+                {
+                    CategoryFieldId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CategoryId = table.Column<int>(type: "int", nullable: false),
+                    FieldKey = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Label = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    HelperText = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                    OptionsJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsRequired = table.Column<bool>(type: "bit", nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsSystemDefined = table.Column<bool>(type: "bit", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    CreatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    UpdatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CategoryFields", x => x.CategoryFieldId);
+                    table.ForeignKey(
+                        name: "FK_CategoryFields_Categories_CategoryId",
+                        column: x => x.CategoryId,
+                        principalTable: "Categories",
+                        principalColumn: "CategoryId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Contracts",
                 columns: table => new
                 {
@@ -92,23 +150,23 @@ namespace ContractManager.Api.Migrations
                     ContractNumber = table.Column<string>(type: "nvarchar(24)", maxLength: 24, nullable: false),
                     Title = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Category = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
+                    OverallStatus = table.Column<int>(type: "int", nullable: false),
+                    Priority = table.Column<int>(type: "int", nullable: false),
                     VendorId = table.Column<int>(type: "int", nullable: false),
                     RequesterUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AssignedReviewerUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    RequesterEmail = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: false),
+                    ProcurementOwnerUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     TotalCostUsd = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    SignatureDeadline = table.Column<DateTime>(type: "datetime2", nullable: true),
                     SubmittedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     TermStartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     TermEndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     LastActionAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    NextActionDueAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    LastReminderSentAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    EventName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     EventDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     VenueLocation = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    PartOfLargerEvent = table.Column<bool>(type: "bit", nullable: true),
                     ParentEventName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Building = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     ServiceDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ITType = table.Column<int>(type: "int", nullable: true),
                     ApplicationName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -133,8 +191,8 @@ namespace ContractManager.Api.Migrations
                 {
                     table.PrimaryKey("PK_Contracts", x => x.ContractId);
                     table.ForeignKey(
-                        name: "FK_Contracts_Users_AssignedReviewerUserId",
-                        column: x => x.AssignedReviewerUserId,
+                        name: "FK_Contracts_Users_ProcurementOwnerUserId",
+                        column: x => x.ProcurementOwnerUserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Restrict);
@@ -196,7 +254,7 @@ namespace ContractManager.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ContractId = table.Column<int>(type: "int", nullable: false),
                     ReviewerUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ReviewerTeam = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ReviewerTeam = table.Column<int>(type: "int", nullable: false),
                     AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     AssignedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
@@ -286,6 +344,78 @@ namespace ContractManager.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ContractFieldValues",
+                columns: table => new
+                {
+                    ContractFieldValueId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ContractId = table.Column<int>(type: "int", nullable: false),
+                    CategoryFieldId = table.Column<int>(type: "int", nullable: false),
+                    FieldKey = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ValueText = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    CreatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    UpdatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContractFieldValues", x => x.ContractFieldValueId);
+                    table.ForeignKey(
+                        name: "FK_ContractFieldValues_CategoryFields_CategoryFieldId",
+                        column: x => x.CategoryFieldId,
+                        principalTable: "CategoryFields",
+                        principalColumn: "CategoryFieldId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ContractFieldValues_Contracts_ContractId",
+                        column: x => x.ContractId,
+                        principalTable: "Contracts",
+                        principalColumn: "ContractId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ContractLanes",
+                columns: table => new
+                {
+                    ContractLaneId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ContractId = table.Column<int>(type: "int", nullable: false),
+                    LaneId = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    OwnerUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    OwnerLabel = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Note = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    CreatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    UpdatedBy = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContractLanes", x => x.ContractLaneId);
+                    table.ForeignKey(
+                        name: "FK_ContractLanes_Contracts_ContractId",
+                        column: x => x.ContractId,
+                        principalTable: "Contracts",
+                        principalColumn: "ContractId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ContractLanes_Users_OwnerUserId",
+                        column: x => x.OwnerUserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ContractNotes",
                 columns: table => new
                 {
@@ -328,8 +458,10 @@ namespace ContractManager.Api.Migrations
                     NotificationLogId = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ContractId = table.Column<int>(type: "int", nullable: false),
+                    TargetLaneId = table.Column<int>(type: "int", nullable: false),
                     Channel = table.Column<int>(type: "int", nullable: false),
-                    RecipientUserId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    RecipientLabel = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                    RecipientEmail = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: true),
                     Subject = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     FailureReason = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
@@ -401,6 +533,30 @@ namespace ContractManager.Api.Migrations
                 columns: new[] { "ContractId", "OccurredAt" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_Categories_Code",
+                table: "Categories",
+                column: "Code",
+                unique: true,
+                filter: "[IsDeleted] = 0");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Categories_IsActive_SortOrder",
+                table: "Categories",
+                columns: new[] { "IsActive", "SortOrder" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CategoryFields_CategoryId_FieldKey",
+                table: "CategoryFields",
+                columns: new[] { "CategoryId", "FieldKey" },
+                unique: true,
+                filter: "[IsDeleted] = 0");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CategoryFields_CategoryId_IsActive_SortOrder",
+                table: "CategoryFields",
+                columns: new[] { "CategoryId", "IsActive", "SortOrder" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ContractAssignments_ContractId",
                 table: "ContractAssignments",
                 column: "ContractId");
@@ -449,6 +605,40 @@ namespace ContractManager.Api.Migrations
                 column: "ContractId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ContractFieldValues_CategoryFieldId",
+                table: "ContractFieldValues",
+                column: "CategoryFieldId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContractFieldValues_ContractId_CategoryFieldId",
+                table: "ContractFieldValues",
+                columns: new[] { "ContractId", "CategoryFieldId" },
+                unique: true,
+                filter: "[IsDeleted] = 0");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContractFieldValues_FieldKey",
+                table: "ContractFieldValues",
+                column: "FieldKey");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContractLanes_ContractId",
+                table: "ContractLanes",
+                column: "ContractId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContractLanes_ContractId_LaneId",
+                table: "ContractLanes",
+                columns: new[] { "ContractId", "LaneId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContractLanes_OwnerUserId_ContractId",
+                table: "ContractLanes",
+                columns: new[] { "OwnerUserId", "ContractId" },
+                filter: "[Status] IN (2, 3)");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ContractNotes_AuthorUserId",
                 table: "ContractNotes",
                 column: "AuthorUserId");
@@ -459,9 +649,9 @@ namespace ContractManager.Api.Migrations
                 column: "ContractId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Contracts_AssignedReviewerUserId",
+                name: "IX_Contracts_Category_Priority",
                 table: "Contracts",
-                column: "AssignedReviewerUserId");
+                columns: new[] { "Category", "Priority" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Contracts_ContractNumber",
@@ -471,19 +661,25 @@ namespace ContractManager.Api.Migrations
                 filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Contracts_NextActionDueAt",
+                name: "IX_Contracts_LastActionAt",
                 table: "Contracts",
-                column: "NextActionDueAt");
+                column: "LastActionAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Contracts_OverallStatus",
+                table: "Contracts",
+                column: "OverallStatus",
+                filter: "[OverallStatus] = 1");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Contracts_ProcurementOwnerUserId",
+                table: "Contracts",
+                column: "ProcurementOwnerUserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Contracts_RequesterUserId",
                 table: "Contracts",
                 column: "RequesterUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Contracts_Status",
-                table: "Contracts",
-                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Contracts_TermEndDate",
@@ -523,6 +719,7 @@ namespace ContractManager.Api.Migrations
                 name: "IX_Vendors_Name",
                 table: "Vendors",
                 column: "Name",
+                unique: true,
                 filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
@@ -547,6 +744,12 @@ namespace ContractManager.Api.Migrations
                 name: "ContractComments");
 
             migrationBuilder.DropTable(
+                name: "ContractFieldValues");
+
+            migrationBuilder.DropTable(
+                name: "ContractLanes");
+
+            migrationBuilder.DropTable(
                 name: "ContractNotes");
 
             migrationBuilder.DropTable(
@@ -559,7 +762,13 @@ namespace ContractManager.Api.Migrations
                 name: "ContractAttachmentBatches");
 
             migrationBuilder.DropTable(
+                name: "CategoryFields");
+
+            migrationBuilder.DropTable(
                 name: "Contracts");
+
+            migrationBuilder.DropTable(
+                name: "Categories");
 
             migrationBuilder.DropTable(
                 name: "Users");

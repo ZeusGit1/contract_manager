@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ContractManager.Api.Migrations
 {
     [DbContext(typeof(ContractManagerDbContext))]
-    [Migration("20260611002508_InitialSchema")]
-    partial class InitialSchema
+    [Migration("20260622211128_InitialV2Schema")]
+    partial class InitialV2Schema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -88,6 +88,155 @@ namespace ContractManager.Api.Migrations
                     b.ToTable("ActivityEvents", (string)null);
                 });
 
+            modelBuilder.Entity("ContractManager.Api.Domain.CategoryDefinition", b =>
+                {
+                    b.Property<int>("CategoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CategoryId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IconKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSystemDefined")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("CategoryId");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("IsActive", "SortOrder");
+
+                    b.ToTable("Categories", (string)null);
+                });
+
+            modelBuilder.Entity("ContractManager.Api.Domain.CategoryField", b =>
+                {
+                    b.Property<int>("CategoryFieldId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CategoryFieldId"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FieldKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("HelperText")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSystemDefined")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("OptionsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("CategoryFieldId");
+
+                    b.HasIndex("CategoryId", "FieldKey")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("CategoryId", "IsActive", "SortOrder");
+
+                    b.ToTable("CategoryFields", (string)null);
+                });
+
             modelBuilder.Entity("ContractManager.Api.Domain.Contract", b =>
                 {
                     b.Property<int>("ContractId")
@@ -110,8 +259,9 @@ namespace ContractManager.Api.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
-                    b.Property<Guid?>("AssignedReviewerUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("Building")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<int>("Category")
                         .HasColumnType("int");
@@ -143,6 +293,10 @@ namespace ContractManager.Api.Migrations
                     b.Property<DateTime?>("EventDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("EventName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<int?>("ITType")
                         .HasColumnType("int");
 
@@ -155,39 +309,38 @@ namespace ContractManager.Api.Migrations
                     b.Property<DateTime>("LastActionAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("LastReminderSentAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int?>("LicensingType")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("NextActionDueAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int?>("NumberOfUsers")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OverallStatus")
                         .HasColumnType("int");
 
                     b.Property<string>("ParentEventName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<bool?>("PartOfLargerEvent")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Permissions")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ProcurementOwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequesterEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
 
                     b.Property<Guid>("RequesterUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ServiceDescription")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("SignatureDeadline")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("SubmittedAt")
                         .HasColumnType("datetime2");
@@ -231,21 +384,24 @@ namespace ContractManager.Api.Migrations
 
                     b.HasKey("ContractId");
 
-                    b.HasIndex("AssignedReviewerUserId");
-
                     b.HasIndex("ContractNumber")
                         .IsUnique()
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.HasIndex("NextActionDueAt");
+                    b.HasIndex("LastActionAt");
+
+                    b.HasIndex("OverallStatus")
+                        .HasFilter("[OverallStatus] = 1");
+
+                    b.HasIndex("ProcurementOwnerUserId");
 
                     b.HasIndex("RequesterUserId");
-
-                    b.HasIndex("Status");
 
                     b.HasIndex("TermEndDate");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("Category", "Priority");
 
                     b.ToTable("Contracts", (string)null);
                 });
@@ -283,10 +439,8 @@ namespace ContractManager.Api.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("ReviewerTeam")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                    b.Property<int>("ReviewerTeam")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("ReviewerUserId")
                         .HasColumnType("uniqueidentifier");
@@ -501,6 +655,139 @@ namespace ContractManager.Api.Migrations
                     b.ToTable("ContractComments", (string)null);
                 });
 
+            modelBuilder.Entity("ContractManager.Api.Domain.ContractFieldValue", b =>
+                {
+                    b.Property<int>("ContractFieldValueId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ContractFieldValueId"));
+
+                    b.Property<int>("CategoryFieldId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ContractId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FieldKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ValueText")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ContractFieldValueId");
+
+                    b.HasIndex("CategoryFieldId");
+
+                    b.HasIndex("FieldKey");
+
+                    b.HasIndex("ContractId", "CategoryFieldId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("ContractFieldValues", (string)null);
+                });
+
+            modelBuilder.Entity("ContractManager.Api.Domain.ContractLane", b =>
+                {
+                    b.Property<int>("ContractLaneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ContractLaneId"));
+
+                    b.Property<int>("ContractId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LaneId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerLabel")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("ContractLaneId");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("ContractId", "LaneId")
+                        .IsUnique();
+
+                    b.HasIndex("OwnerUserId", "ContractId")
+                        .HasFilter("[Status] IN (2, 3)");
+
+                    b.ToTable("ContractLanes", (string)null);
+                });
+
             modelBuilder.Entity("ContractManager.Api.Domain.ContractNote", b =>
                 {
                     b.Property<int>("ContractNoteId")
@@ -598,10 +885,13 @@ namespace ContractManager.Api.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("RecipientUserId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                    b.Property<string>("RecipientEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("RecipientLabel")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
                     b.Property<DateTime>("SentAt")
                         .HasColumnType("datetime2");
@@ -613,6 +903,9 @@ namespace ContractManager.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("TargetLaneId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -825,6 +1118,7 @@ namespace ContractManager.Api.Migrations
                     b.HasKey("VendorId");
 
                     b.HasIndex("Name")
+                        .IsUnique()
                         .HasFilter("[IsDeleted] = 0");
 
                     b.HasIndex("PreferredStatus");
@@ -851,11 +1145,22 @@ namespace ContractManager.Api.Migrations
                     b.Navigation("Contract");
                 });
 
+            modelBuilder.Entity("ContractManager.Api.Domain.CategoryField", b =>
+                {
+                    b.HasOne("ContractManager.Api.Domain.CategoryDefinition", "Category")
+                        .WithMany("Fields")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("ContractManager.Api.Domain.Contract", b =>
                 {
-                    b.HasOne("ContractManager.Api.Domain.User", "AssignedReviewer")
+                    b.HasOne("ContractManager.Api.Domain.User", "ProcurementOwner")
                         .WithMany()
-                        .HasForeignKey("AssignedReviewerUserId")
+                        .HasForeignKey("ProcurementOwnerUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ContractManager.Api.Domain.User", "Requester")
@@ -870,7 +1175,7 @@ namespace ContractManager.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("AssignedReviewer");
+                    b.Navigation("ProcurementOwner");
 
                     b.Navigation("Requester");
 
@@ -944,6 +1249,43 @@ namespace ContractManager.Api.Migrations
                     b.Navigation("Contract");
                 });
 
+            modelBuilder.Entity("ContractManager.Api.Domain.ContractFieldValue", b =>
+                {
+                    b.HasOne("ContractManager.Api.Domain.CategoryField", "CategoryField")
+                        .WithMany()
+                        .HasForeignKey("CategoryFieldId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ContractManager.Api.Domain.Contract", "Contract")
+                        .WithMany("FieldValues")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CategoryField");
+
+                    b.Navigation("Contract");
+                });
+
+            modelBuilder.Entity("ContractManager.Api.Domain.ContractLane", b =>
+                {
+                    b.HasOne("ContractManager.Api.Domain.Contract", "Contract")
+                        .WithMany("Lanes")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ContractManager.Api.Domain.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Contract");
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("ContractManager.Api.Domain.ContractNote", b =>
                 {
                     b.HasOne("ContractManager.Api.Domain.User", "Author")
@@ -974,6 +1316,11 @@ namespace ContractManager.Api.Migrations
                     b.Navigation("Contract");
                 });
 
+            modelBuilder.Entity("ContractManager.Api.Domain.CategoryDefinition", b =>
+                {
+                    b.Navigation("Fields");
+                });
+
             modelBuilder.Entity("ContractManager.Api.Domain.Contract", b =>
                 {
                     b.Navigation("ActivityEvents");
@@ -983,6 +1330,10 @@ namespace ContractManager.Api.Migrations
                     b.Navigation("Attachments");
 
                     b.Navigation("Comments");
+
+                    b.Navigation("FieldValues");
+
+                    b.Navigation("Lanes");
 
                     b.Navigation("Notes");
                 });

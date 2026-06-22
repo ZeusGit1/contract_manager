@@ -88,7 +88,14 @@ public class VendorService : IVendorService
             .Where(c => c.VendorId == vendorId)
             .OrderByDescending(c => c.SubmittedAt)
             .Take(50)
-            .Select(c => new VendorContractRefDto(c.ContractId, c.ContractNumber, c.Title, c.Status, c.Category))
+            .Select(c => new VendorContractRefDto(
+                c.ContractId,
+                c.ContractNumber,
+                c.Title,
+                c.OverallStatus,
+                c.Priority,
+                c.Category,
+                c.Lanes.Count(l => l.Status == LaneStatus.InReview || l.Status == LaneStatus.Waiting)))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         return new VendorSummaryDto(

@@ -9,6 +9,7 @@ import { ContractDetailScreen } from '@/features/contracts/ContractDetailScreen'
 import { DashboardScreen } from '@/features/contracts/DashboardScreen';
 import { MyReviewsScreen } from '@/features/contracts/MyReviewsScreen';
 import { MySubmissionsScreen } from '@/features/contracts/MySubmissionsScreen';
+import { RenewalsScreen } from '@/features/contracts/RenewalsScreen';
 import { ReportsScreen } from '@/features/contracts/ReportsScreen';
 import { CategoryPickerScreen } from '@/features/intake/CategoryPickerScreen';
 import { IntakeEventScreen } from '@/features/intake/IntakeEventScreen';
@@ -84,6 +85,7 @@ function AuthenticatedApp() {
         <Route path="/my-submissions" element={<MySubmissionsScreen />} />
         <Route path="/my-reviews" element={<MyReviewsScreen />} />
         <Route path="/archive" element={<ArchiveScreen />} />
+        <Route path="/renewals" element={<RenewalsScreen />} />
         <Route path="/reports" element={<ReportsScreen />} />
         <Route path="/settings/categories" element={<CategoriesSettingsScreen />} />
         <Route path="/settings/reminders" element={<ReminderSettingsScreen />} />

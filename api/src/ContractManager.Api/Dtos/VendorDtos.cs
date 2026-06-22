@@ -31,8 +31,10 @@ public record VendorContractRefDto(
     int ContractId,
     string ContractNumber,
     string Title,
-    ContractStatus Status,
-    Category Category);
+    OverallStatus OverallStatus,
+    Priority Priority,
+    Category Category,
+    int ActiveLaneCount);
 
 public class CreateVendorRequest
 {

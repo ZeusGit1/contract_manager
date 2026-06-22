@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+using System.Globalization;
 using ContractManager.Api.Data;
 using ContractManager.Api.Domain;
 using ContractManager.Api.Dtos;
@@ -7,176 +7,267 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ContractManager.Api.Services;
 
+/// <summary>
+/// Bulk-upload preview + commit. Server stateless between calls (ADR-011) — the client holds
+/// the working state. On commit, each row creates a Contract + 9 lanes in one transaction per
+/// row; failures don't fail the batch (plan.md §3.10). Legacy status mapping per ADR-035.
+/// </summary>
 public interface IBulkUploadService
 {
-    Task<BulkUploadPreviewDto> PreviewAsync(Stream xlsx, CancellationToken cancellationToken);
-    Task<BulkUploadCommitResponse> CommitAsync(BulkUploadCommitRequest request, CancellationToken cancellationToken);
+    Task<BulkUploadPreviewDto> PreviewAsync(BulkUploadPreviewRequest request, CancellationToken cancellationToken);
+    Task<BulkUploadCommitResult> CommitAsync(BulkUploadCommitRequest request, CancellationToken cancellationToken);
 }
 
 public class BulkUploadService : IBulkUploadService
 {
-    private static readonly string[] RequiredHeaders =
-    {
-        "ContractName", "Category", "VendorName", "TotalCost", "TermStartDate", "TermEndDate",
-    };
-
     private readonly ContractManagerDbContext _db;
-    private readonly IContractNumberGenerator _numberGenerator;
     private readonly IUserContext _userContext;
+    private readonly IContractNumberGenerator _numberGenerator;
     private readonly IClock _clock;
-    private readonly IActivityRecorder _activity;
 
     public BulkUploadService(
         ContractManagerDbContext db,
-        IContractNumberGenerator numberGenerator,
         IUserContext userContext,
-        IClock clock,
-        IActivityRecorder activity)
+        IContractNumberGenerator numberGenerator,
+        IClock clock)
     {
         _db = db;
-        _numberGenerator = numberGenerator;
         _userContext = userContext;
+        _numberGenerator = numberGenerator;
         _clock = clock;
-        _activity = activity;
     }
 
-    public async Task<BulkUploadPreviewDto> PreviewAsync(Stream xlsx, CancellationToken cancellationToken)
+    public async Task<BulkUploadPreviewDto> PreviewAsync(BulkUploadPreviewRequest request, CancellationToken cancellationToken)
     {
-        using var workbook = new XLWorkbook(xlsx);
-        var worksheet = workbook.Worksheets.FirstOrDefault()
-            ?? throw new InvalidOperationException("Workbook has no worksheets");
+        var inputs = request.Rows ?? Array.Empty<BulkUploadInputRow>();
 
-        var headerRow = worksheet.FirstRowUsed()
-            ?? throw new InvalidOperationException("Worksheet has no header row");
-        var headers = headerRow.Cells().Select(cell => cell.GetString().Trim()).ToList();
-        foreach (var required in RequiredHeaders)
+        // Pre-load vendor + user lookups so we can match without N+1 queries.
+        var vendorsByName = await _db.Vendors.AsNoTracking()
+            .Select(v => new { v.VendorId, v.Name })
+            .ToDictionaryAsync(v => v.Name, v => v.VendorId, StringComparer.OrdinalIgnoreCase, cancellationToken)
+            .ConfigureAwait(false);
+
+        var ownersByName = await _db.Users.AsNoTracking()
+            .Select(u => new { u.UserId, u.DisplayName })
+            .ToDictionaryAsync(u => u.DisplayName, u => u.UserId, StringComparer.OrdinalIgnoreCase, cancellationToken)
+            .ConfigureAwait(false);
+
+        var rows = new List<BulkUploadPreviewRow>(inputs.Count);
+        int vendorDupes = 0;
+
+        foreach (var row in inputs)
         {
-            if (!headers.Contains(required, StringComparer.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Missing required column: {required}");
-            }
-        }
-
-        var vendorNames = new HashSet<string>(
-            await _db.Vendors.Select(v => v.Name).ToListAsync(cancellationToken).ConfigureAwait(false),
-            StringComparer.OrdinalIgnoreCase);
-
-        var rows = new List<BulkUploadRowDto>();
-        var dataRows = worksheet.RangeUsed()?.RowsUsed().Skip(1) ?? Enumerable.Empty<IXLRangeRow>();
-        var rowNumber = 1;
-        foreach (var dataRow in dataRows)
-        {
-            rowNumber++;
-            var errors = new List<string>();
-            string? Read(string header) =>
-                headers.FindIndex(name => name.Equals(header, StringComparison.OrdinalIgnoreCase)) is int idx and >= 0
-                    ? dataRow.Cell(idx + 1).GetString().Trim()
-                    : null;
-
-            var title = Read("ContractName");
-            var categoryText = Read("Category");
-            var vendorName = Read("VendorName");
-            var costText = Read("TotalCost");
-            var termStartText = Read("TermStartDate");
-            var termEndText = Read("TermEndDate");
-
-            if (string.IsNullOrWhiteSpace(title)) errors.Add("Missing title");
-            if (string.IsNullOrWhiteSpace(vendorName)) errors.Add("Missing vendor");
-            else if (!vendorNames.Contains(vendorName)) errors.Add("Unknown vendor");
+            var errors = new List<BulkRowError>();
+            var title = row.Title?.Trim();
+            if (string.IsNullOrWhiteSpace(title)) errors.Add(new("Title", "Title is required."));
 
             Category? category = null;
-            if (string.IsNullOrWhiteSpace(categoryText) || !Enum.TryParse(categoryText, true, out Category parsedCategory))
+            if (string.IsNullOrWhiteSpace(row.Category)) errors.Add(new("Category", "Category is required."));
+            else if (!Enum.TryParse<Category>(row.Category, ignoreCase: true, out var cat)) errors.Add(new("Category", $"Unknown category '{row.Category}'."));
+            else category = cat;
+
+            int? matchedVendorId = null;
+            var vendorName = row.VendorName?.Trim();
+            if (string.IsNullOrWhiteSpace(vendorName)) errors.Add(new("VendorName", "Vendor name is required."));
+            else if (vendorsByName.TryGetValue(vendorName, out var vendorId))
             {
-                errors.Add("Unknown category");
+                matchedVendorId = vendorId;
+                vendorDupes++;
             }
-            else
+            else errors.Add(new("VendorName", $"Unknown vendor '{vendorName}'. Add the vendor first or correct the name."));
+
+            Priority? priority = null;
+            if (!string.IsNullOrWhiteSpace(row.Priority))
             {
-                category = parsedCategory;
+                if (Enum.TryParse<Priority>(row.Priority, ignoreCase: true, out var pri)) priority = pri;
+                else errors.Add(new("Priority", $"Unknown priority '{row.Priority}'."));
+            }
+            else priority = Priority.Medium;
+
+            Guid? procOwnerId = null;
+            if (!string.IsNullOrWhiteSpace(row.ProcurementOwnerName))
+            {
+                if (ownersByName.TryGetValue(row.ProcurementOwnerName.Trim(), out var uid)) procOwnerId = uid;
+                else errors.Add(new("ProcurementOwnerName", $"Unknown procurement owner '{row.ProcurementOwnerName}'."));
             }
 
-            decimal? cost = null;
-            if (!string.IsNullOrWhiteSpace(costText))
+            decimal? totalCost = null;
+            if (!string.IsNullOrWhiteSpace(row.TotalCost))
             {
-                var cleaned = new string(costText.Where(ch => char.IsDigit(ch) || ch == '.' || ch == '-').ToArray());
-                if (decimal.TryParse(cleaned, out var parsedCost) && parsedCost > 0)
-                {
-                    cost = parsedCost;
-                }
-                else
-                {
-                    errors.Add("Invalid amount");
-                }
+                if (decimal.TryParse(row.TotalCost, NumberStyles.Currency | NumberStyles.Number, CultureInfo.InvariantCulture, out var amount)) totalCost = amount;
+                else errors.Add(new("TotalCost", $"Invalid amount '{row.TotalCost}'."));
             }
 
-            DateTime? termStart = TryParseDate(termStartText, errors, "Term start");
-            DateTime? termEnd = TryParseDate(termEndText, errors, "Term end");
-            if (termStart is DateTime start && termEnd is DateTime end && end < start)
+            var termStart = ParseDate(row.TermStartDate, "TermStartDate", errors);
+            var termEnd = ParseDate(row.TermEndDate, "TermEndDate", errors);
+            if (termStart.HasValue && termEnd.HasValue && termEnd.Value < termStart.Value)
             {
-                errors.Add("Ends before start");
+                errors.Add(new("TermEndDate", "Term end date is before term start date."));
             }
 
-            rows.Add(new BulkUploadRowDto(
-                rowNumber, title, vendorName, categoryText,
-                cost, termStart, termEnd, errors));
+            var submittedDate = ParseDate(row.SubmittedDate, "SubmittedDate", errors) ?? _clock.UtcNow.Date;
+
+            if (string.IsNullOrWhiteSpace(row.RequesterEmail)) errors.Add(new("RequesterEmail", "Requester email is required."));
+
+            rows.Add(new BulkUploadPreviewRow(
+                row.Index,
+                row.ContractNumber?.Trim(),
+                title,
+                category,
+                vendorName,
+                matchedVendorId,
+                priority,
+                procOwnerId,
+                row.RequesterName?.Trim(),
+                row.RequesterEmail?.Trim(),
+                totalCost,
+                termStart,
+                termEnd,
+                submittedDate,
+                row.LegacyStatus?.Trim(),
+                errors.Count == 0,
+                row.IsSkipped,
+                errors));
         }
 
-        var valid = rows.Count(r => r.Errors.Count == 0);
-        return new BulkUploadPreviewDto(rows.Count, valid, rows.Count - valid, rows);
+        return new BulkUploadPreviewDto(
+            rows,
+            rows.Count(r => r.IsValid && !r.IsSkipped),
+            rows.Count(r => !r.IsValid && !r.IsSkipped),
+            vendorDupes);
     }
 
-    public async Task<BulkUploadCommitResponse> CommitAsync(BulkUploadCommitRequest request, CancellationToken cancellationToken)
+    public async Task<BulkUploadCommitResult> CommitAsync(BulkUploadCommitRequest request, CancellationToken cancellationToken)
     {
-        var requesterId = _userContext.UserId
-            ?? throw new InvalidOperationException("Authenticated requester required");
-        var vendorLookup = await _db.Vendors
-            .Select(v => new { v.VendorId, v.Name })
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        var vendorIndex = vendorLookup.ToDictionary(v => v.Name, v => v.VendorId, StringComparer.OrdinalIgnoreCase);
+        var failures = new List<BulkCommitFailure>();
+        int imported = 0;
+        int skipped = 0;
+        var actor = _userContext.UserId ?? Guid.Empty;
 
-        var now = _clock.UtcNow;
-        var imported = new List<int>();
-        var skipped = 0;
         foreach (var row in request.Rows)
         {
-            if (row.Errors.Count > 0) { skipped++; continue; }
-            if (string.IsNullOrWhiteSpace(row.ContractTitle)
-                || string.IsNullOrWhiteSpace(row.VendorName)
-                || !vendorIndex.TryGetValue(row.VendorName!, out var vendorId)
-                || string.IsNullOrWhiteSpace(row.Category)
-                || !Enum.TryParse<Category>(row.Category, true, out var category))
-            {
-                skipped++;
-                continue;
-            }
+            if (row.IsSkipped) { skipped++; continue; }
+            if (!row.IsValid) { failures.Add(new(row.Index, row.ContractNumber, "Row is flagged invalid.")); continue; }
 
-            var contract = new Contract
+            try
             {
-                ContractNumber = await _numberGenerator.NextAsync(cancellationToken).ConfigureAwait(false),
-                Title = row.ContractTitle!,
-                Category = category,
-                Status = ContractStatus.InProcess,
-                VendorId = vendorId,
-                RequesterUserId = requesterId,
-                TotalCostUsd = row.TotalCost,
-                SubmittedAt = now,
-                TermStartDate = row.TermStartDate,
-                TermEndDate = row.TermEndDate,
-                LastActionAt = now,
-            };
-            _db.Contracts.Add(contract);
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            _activity.Record(contract, ActivityType.BulkImported, $"Imported via bulk upload — row {row.RowNumber}");
-            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            imported.Add(contract.ContractId);
+                await CommitOneAsync(row, actor, cancellationToken).ConfigureAwait(false);
+                imported++;
+            }
+            catch (Exception ex)
+            {
+                // Per-row isolation: log + collect; don't fail the batch.
+                failures.Add(new(row.Index, row.ContractNumber, ex.Message));
+            }
         }
-        return new BulkUploadCommitResponse(imported.Count, skipped, imported);
+
+        return new BulkUploadCommitResult(imported, failures.Count, skipped, failures);
     }
 
-    private static DateTime? TryParseDate(string? value, List<string> errors, string field)
+    private async Task CommitOneAsync(BulkUploadPreviewRow row, Guid actor, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(value)) { errors.Add($"Missing {field.ToLower()} date"); return null; }
-        if (DateTime.TryParse(value, out var parsed)) return parsed;
-        errors.Add($"Invalid {field.ToLower()} date");
+        if (row.Category is null || row.MatchedVendorId is null || string.IsNullOrWhiteSpace(row.Title) || string.IsNullOrWhiteSpace(row.RequesterEmail))
+        {
+            throw new InvalidOperationException("Row is missing required values.");
+        }
+
+        var contractNumber = string.IsNullOrWhiteSpace(row.ContractNumber)
+            ? await _numberGenerator.NextAsync(cancellationToken).ConfigureAwait(false)
+            : row.ContractNumber!.Trim();
+
+        var (overallStatus, laneStatuses) = MapLegacyStatus(row.LegacyStatus);
+
+        var now = _clock.UtcNow;
+        var contract = new Contract
+        {
+            ContractNumber = contractNumber,
+            Title = row.Title!.Trim(),
+            Category = row.Category.Value,
+            OverallStatus = overallStatus,
+            Priority = row.Priority ?? Priority.Medium,
+            VendorId = row.MatchedVendorId.Value,
+            RequesterUserId = actor,
+            RequesterEmail = row.RequesterEmail!.Trim(),
+            ProcurementOwnerUserId = row.ProcurementOwnerUserId,
+            TotalCostUsd = row.TotalCostUsd,
+            TermStartDate = row.TermStartDate,
+            TermEndDate = row.TermEndDate,
+            SubmittedAt = row.SubmittedDate ?? now,
+            LastActionAt = now,
+        };
+        foreach (var (laneId, status) in laneStatuses)
+        {
+            contract.Lanes.Add(new ContractLane
+            {
+                LaneId = laneId,
+                Status = status,
+                LastUpdated = now,
+            });
+        }
+        contract.ActivityEvents.Add(new ActivityEvent
+        {
+            ActorUserId = actor,
+            Type = ActivityType.BulkImported,
+            DescriptionLine = $"Imported via bulk upload (legacy status: {row.LegacyStatus ?? "(none)"}).",
+            OccurredAt = now,
+        });
+
+        _db.Contracts.Add(contract);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Legacy-status → (overallStatus, per-lane statuses) per ADR-035. Returned tuple lists every
+    /// lane in canonical order so callers can drop straight into ContractLane rows.
+    /// </summary>
+    private static (OverallStatus Overall, IReadOnlyList<(LaneId LaneId, LaneStatus Status)> Lanes) MapLegacyStatus(string? legacyStatus)
+    {
+        var notStarted = LaneStatus.NotStarted;
+        LaneStatus Proc = LaneStatus.InReview, Legal = notStarted, InfoSec = notStarted, Privacy = notStarted, Gco = notStarted,
+            Vendor = notStarted, Requester = notStarted, Signature = notStarted, Filed = notStarted;
+        var overall = OverallStatus.Active;
+
+        switch ((legacyStatus ?? "InProcess").Trim())
+        {
+            case "WithVendor": Vendor = LaneStatus.Waiting; break;
+            case "WithRequester": Requester = LaneStatus.Waiting; break;
+            case "WithLegal": Legal = LaneStatus.InReview; break;
+            case "WithGCO": Gco = LaneStatus.InReview; break;
+            case "WithInfoSec": InfoSec = LaneStatus.InReview; break;
+            case "WithPrivacy": Privacy = LaneStatus.InReview; break;
+            case "OutForSignature": Signature = LaneStatus.Waiting; break;
+            case "Completed":
+                Proc = LaneStatus.Complete;
+                Legal = InfoSec = Privacy = Gco = Vendor = Requester = Signature = Filed = LaneStatus.NA;
+                overall = OverallStatus.Completed;
+                break;
+            case "OnHold": Proc = LaneStatus.Waiting; break;
+            case "Canceled":
+            case "Expired":
+            case "Terminated":
+                Proc = LaneStatus.Canceled;
+                Legal = InfoSec = Privacy = Gco = Vendor = Requester = Signature = Filed = LaneStatus.Canceled;
+                overall = OverallStatus.Canceled;
+                break;
+            case "InProcess":
+            default:
+                break;
+        }
+
+        return (overall, new[]
+        {
+            (LaneId.Procurement, Proc), (LaneId.Legal, Legal), (LaneId.InfoSec, InfoSec),
+            (LaneId.Privacy, Privacy), (LaneId.GCO, Gco), (LaneId.Vendor, Vendor),
+            (LaneId.Requester, Requester), (LaneId.Signature, Signature), (LaneId.Filed, Filed),
+        });
+    }
+
+    private static DateTime? ParseDate(string? raw, string fieldKey, List<BulkRowError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed)) return parsed;
+        if (DateTime.TryParse(raw, out parsed)) return parsed.ToUniversalTime();
+        errors.Add(new(fieldKey, $"Invalid date '{raw}'."));
         return null;
     }
 }

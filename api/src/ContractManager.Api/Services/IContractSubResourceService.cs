@@ -116,7 +116,7 @@ public class ContractSubResourceService : IContractSubResourceService
             ContractId = contractId,
             AuthorUserId = authorId,
             Type = request.Type,
-            NoteDate = request.Date,
+            NoteDate = request.NoteDate,
             Participants = request.Participants,
             Text = request.Text,
         };
@@ -205,12 +205,12 @@ public class ContractSubResourceService : IContractSubResourceService
         {
             ContractId = contractId,
             ReviewerUserId = request.ReviewerUserId,
-            ReviewerTeam = request.Team,
+            ReviewerTeam = request.ReviewerTeam,
             AssignedAt = now,
             AssignedByUserId = assignedBy,
         };
         _db.ContractAssignments.Add(assignment);
-        _activity.Record(contract, ActivityType.AssignmentChanged, $"{request.Team} reviewer added");
+        _activity.Record(contract, ActivityType.AssignmentAdded, $"{request.ReviewerTeam} reviewer added");
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await _db.Entry(assignment).Reference(a => a.Reviewer).LoadAsync(ct).ConfigureAwait(false);
@@ -229,7 +229,7 @@ public class ContractSubResourceService : IContractSubResourceService
         if (assignment is null) return false;
 
         _db.ContractAssignments.Remove(assignment);
-        _activity.Record(contract, ActivityType.AssignmentChanged, "Reviewer removed");
+        _activity.Record(contract, ActivityType.AssignmentRemoved, "Reviewer removed");
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         return true;
     }
