@@ -9,13 +9,14 @@ import { ContractDetailScreen } from '@/features/contracts/ContractDetailScreen'
 import { DashboardScreen } from '@/features/contracts/DashboardScreen';
 import { MyReviewsScreen } from '@/features/contracts/MyReviewsScreen';
 import { MySubmissionsScreen } from '@/features/contracts/MySubmissionsScreen';
-import { RenewalsScreen } from '@/features/contracts/RenewalsScreen';
+import { ReportsScreen } from '@/features/contracts/ReportsScreen';
 import { CategoryPickerScreen } from '@/features/intake/CategoryPickerScreen';
 import { IntakeEventScreen } from '@/features/intake/IntakeEventScreen';
 import { IntakeFacilitiesScreen } from '@/features/intake/IntakeFacilitiesScreen';
 import { IntakeITScreen } from '@/features/intake/IntakeITScreen';
 import { VendorMasterScreen } from '@/features/vendors/VendorMasterScreen';
 import { BulkUploadScreen } from '@/features/bulk-upload/BulkUploadScreen';
+import { CategoriesSettingsScreen } from '@/features/settings/CategoriesSettingsScreen';
 import { ProfileScreen } from '@/features/settings/ProfileScreen';
 import { ReminderSettingsScreen } from '@/features/settings/ReminderSettingsScreen';
 import { Button } from '@/mws/Button';
@@ -71,7 +72,8 @@ function AuthenticatedApp() {
       onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
     >
       <Routes>
-        <Route path="/" element={<RoleHome roles={me.data.roles} />} />
+        <Route path="/" element={<DashboardScreen view="mine" />} />
+        <Route path="/master" element={<DashboardScreen view="master" />} />
         <Route path="/contracts/:contractId" element={<ContractDetailScreen />} />
         <Route path="/new-contract/category" element={<CategoryPickerScreen />} />
         <Route path="/new-contract" element={<IntakeITScreen />} />
@@ -82,20 +84,14 @@ function AuthenticatedApp() {
         <Route path="/my-submissions" element={<MySubmissionsScreen />} />
         <Route path="/my-reviews" element={<MyReviewsScreen />} />
         <Route path="/archive" element={<ArchiveScreen />} />
-        <Route path="/renewals" element={<RenewalsScreen />} />
+        <Route path="/reports" element={<ReportsScreen />} />
+        <Route path="/settings/categories" element={<CategoriesSettingsScreen />} />
         <Route path="/settings/reminders" element={<ReminderSettingsScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
   );
-}
-
-function RoleHome({ roles }: { roles: string[] }) {
-  if (roles.includes('Procurement')) return <DashboardScreen />;
-  if (roles.includes('Requester')) return <Navigate to="/my-submissions" replace />;
-  if (roles.includes('AttorneyReviewer')) return <Navigate to="/my-reviews" replace />;
-  return <Navigate to="/profile" replace />;
 }
 
 function SignInScreen() {
