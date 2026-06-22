@@ -30,7 +30,7 @@ export type Hosting = 'Cloud' | 'OnPremise' | 'Hybrid';
 
 export type NoteType = 'Meeting' | 'Call' | 'Email' | 'Note';
 
-export type AppRole = 'Procurement' | 'Requester' | 'AttorneyReviewer';
+export type AppRole = 'Procurement' | 'ProcurementAdmin' | 'Requester' | 'AttorneyReviewer';
 
 export const FORWARD_STATUS_ORDER: ContractStatus[] = [
   'InProcess',

@@ -9,42 +9,77 @@ interface NavItem {
   label: string;
   icon: string;
   roles: AppRole[];
+  /** Renders a small "Coming soon" pill on the nav entry (ADR-038). */
+  comingSoon?: boolean;
 }
 
 const NAV_PRIMARY: NavItem[] = [
-  { to: '/', label: 'My dashboard', icon: 'user-circle', roles: ['Procurement'] },
-  { to: '/master', label: 'Master view', icon: 'squares-four', roles: ['Procurement'] },
+  {
+    to: '/',
+    label: 'My dashboard',
+    icon: 'user-circle',
+    roles: ['Procurement', 'ProcurementAdmin'],
+  },
+  {
+    to: '/master',
+    label: 'Master view',
+    icon: 'squares-four',
+    roles: ['Procurement', 'ProcurementAdmin'],
+  },
   {
     to: '/my-submissions',
     label: 'My submissions',
     icon: 'list-checks',
-    roles: ['Requester', 'Procurement'],
+    roles: ['Requester', 'Procurement', 'ProcurementAdmin'],
   },
   { to: '/my-reviews', label: 'My reviews', icon: 'eye', roles: ['AttorneyReviewer'] },
-  { to: '/reports', label: 'Reports', icon: 'chart-bar', roles: ['Procurement'] },
-  { to: '/vendors', label: 'Vendors', icon: 'buildings', roles: ['Procurement'] },
+  {
+    to: '/reports',
+    label: 'Reports',
+    icon: 'chart-bar',
+    roles: ['Procurement', 'ProcurementAdmin'],
+  },
+  {
+    to: '/vendors',
+    label: 'Vendors',
+    icon: 'buildings',
+    roles: ['Procurement', 'ProcurementAdmin'],
+  },
+  {
+    to: '/renewals',
+    label: 'Renewals',
+    icon: 'calendar-check',
+    roles: ['Procurement', 'ProcurementAdmin'],
+    comingSoon: true,
+  },
 ];
 const NAV_CREATE: NavItem[] = [
   {
     to: '/new-contract/category',
     label: 'New contract',
     icon: 'plus-circle',
-    roles: ['Requester', 'Procurement'],
+    roles: ['Requester', 'Procurement', 'ProcurementAdmin'],
   },
-  { to: '/bulk-upload', label: 'Bulk upload', icon: 'upload-simple', roles: ['Procurement'] },
+  {
+    to: '/bulk-upload',
+    label: 'Bulk upload',
+    icon: 'upload-simple',
+    roles: ['Procurement', 'ProcurementAdmin'],
+  },
 ];
 const NAV_MORE: NavItem[] = [
   {
     to: '/archive',
     label: 'Completed / canceled',
     icon: 'archive-box',
-    roles: ['Procurement'],
+    roles: ['Procurement', 'ProcurementAdmin'],
   },
   {
+    // Categories admin is restricted to ProcurementAdmin per ADR-032 / ADR-037.
     to: '/settings/categories',
     label: 'Categories & fields',
     icon: 'gear',
-    roles: ['Procurement'],
+    roles: ['ProcurementAdmin'],
   },
 ];
 
@@ -146,6 +181,7 @@ function NavItemLink({ item }: { item: NavItem }) {
       >
         <i className={`ph ph-${item.icon}`} aria-hidden="true" />
         <span>{item.label}</span>
+        {item.comingSoon ? <span className={styles.comingSoon}>Soon</span> : null}
       </NavLink>
     </li>
   );

@@ -68,6 +68,21 @@
   font-size: 16px;
 }
 
+/* "Soon" pill on Coming-Soon nav entries (e.g. /renewals — ADR-038).
+ * Pale-gold fill with navy text per the theme-stable foreground rule. */
+.comingSoon {
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--color-pale-gold);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-2);
+}
+
 .navItem:hover {
   background: rgba(255, 255, 255, 0.06);
 }

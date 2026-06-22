@@ -1,3 +1,4 @@
+using ContractManager.Api.Auth;
 using ContractManager.Api.Data;
 using ContractManager.Api.Domain;
 using ContractManager.Api.Dtos;
@@ -6,470 +7,539 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ContractManager.Api.Services;
 
+/// <summary>
+/// Core contract operations for the v2.0 parallel-lanes model. Lane-mutation logic lives in
+/// <see cref="ILaneService"/>; this service handles header CRUD, list/detail (role-filtered),
+/// archive, and the create flow that inserts the 9 lanes per ADR-030.
+/// </summary>
 public interface IContractService
 {
-    Task<PagedResult<ContractRowDto>> ListAsync(ContractListFilter filter, int page, int pageSize, CancellationToken ct);
-    Task<TriageCountsDto> GetTriageCountsAsync(CancellationToken ct);
-    Task<PagedResult<ContractRowDto>> ListArchiveAsync(string? query, int? year, int page, int pageSize, CancellationToken ct);
-    Task<PagedResult<RenewalRowDto>> ListRenewalsAsync(int windowDays, Category? category, Guid? reviewerUserId, int page, int pageSize, CancellationToken ct);
-    Task<ContractDetailDto?> GetAsync(int contractId, CancellationToken ct);
-    Task<ContractDetailDto> CreateAsync(CreateContractRequest request, CancellationToken ct);
-    Task<ContractDetailDto?> UpdateStatusAsync(int contractId, UpdateStatusRequest request, CancellationToken ct);
-    Task<ContractDetailDto?> UpdateNextDueAsync(int contractId, UpdateNextDueRequest request, CancellationToken ct);
-    Task<ContractDetailDto?> UpdateReviewerAsync(int contractId, UpdateReviewerRequest request, CancellationToken ct);
-    Task<bool> SoftDeleteAsync(int contractId, CancellationToken ct);
+    Task<PagedResult<ContractRowDto>> ListAsync(ContractListFilter filter, int page, int pageSize, CancellationToken cancellationToken);
+    Task<PagedResult<ContractRowDto>> ArchiveAsync(ContractArchiveFilter filter, int page, int pageSize, CancellationToken cancellationToken);
+    Task<ContractDetailDto?> GetAsync(int contractId, CancellationToken cancellationToken);
+    Task<ContractDetailDto> CreateAsync(CreateContractRequest request, CancellationToken cancellationToken);
+    Task<ContractDetailDto?> UpdateAsync(int contractId, UpdateContractRequest request, CancellationToken cancellationToken);
+    Task<bool> UpdateOverallStatusAsync(int contractId, UpdateOverallStatusRequest request, CancellationToken cancellationToken);
+    Task<bool> UpdateProcurementOwnerAsync(int contractId, UpdateProcurementOwnerRequest request, CancellationToken cancellationToken);
+    Task<bool> SoftDeleteAsync(int contractId, CancellationToken cancellationToken);
 }
-
-public record ContractListFilter(string? Triage, Category? Category, Guid? AssigneeUserId, string? Query, string? SortBy = null, string? SortDir = null);
 
 public class ContractService : IContractService
 {
-    private const int DefaultPageSize = 50;
     private const int MaxPageSize = 200;
-    private const int ExpiringSoonDays = 14;
 
     private readonly ContractManagerDbContext _db;
+    private readonly IUserContext _userContext;
     private readonly IContractAccess _access;
     private readonly IContractNumberGenerator _numberGenerator;
     private readonly IActivityRecorder _activity;
-    private readonly IUserContext _userContext;
     private readonly IClock _clock;
 
     public ContractService(
         ContractManagerDbContext db,
+        IUserContext userContext,
         IContractAccess access,
         IContractNumberGenerator numberGenerator,
         IActivityRecorder activity,
-        IUserContext userContext,
         IClock clock)
     {
         _db = db;
+        _userContext = userContext;
         _access = access;
         _numberGenerator = numberGenerator;
         _activity = activity;
-        _userContext = userContext;
         _clock = clock;
     }
 
-    public async Task<PagedResult<ContractRowDto>> ListAsync(
-        ContractListFilter filter, int page, int pageSize, CancellationToken ct)
+    public async Task<PagedResult<ContractRowDto>> ListAsync(ContractListFilter filter, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var clampedSize = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
-        var clampedPage = Math.Max(page, 1);
+        var clampedPage = page < 1 ? 1 : page;
+        var clampedSize = pageSize < 1 ? 50 : Math.Min(pageSize, MaxPageSize);
 
-        var queryable = _access.ApplyListFilter(_db.Contracts.AsNoTracking());
+        var query = _access.ApplyListFilter(_db.Contracts.AsNoTracking());
 
-        // Exclude archived/terminal states from the active dashboard.
-        queryable = queryable.Where(c =>
-            c.Status != ContractStatus.Completed
-            && c.Status != ContractStatus.Canceled
-            && c.Status != ContractStatus.Expired
-            && c.Status != ContractStatus.Terminated);
-
-        queryable = ApplyTriage(queryable, filter.Triage);
-
-        if (filter.Category is Category cat) queryable = queryable.Where(c => c.Category == cat);
-        if (filter.AssigneeUserId is Guid assignee) queryable = queryable.Where(c => c.AssignedReviewerUserId == assignee);
-        if (!string.IsNullOrWhiteSpace(filter.Query))
+        // view=master is Procurement-only — list filter already restricts by role.
+        // For "mine" (default Procurement landing), restrict to contracts where the signed-in
+        // Procurement owner has any lane in {InReview, Waiting}.
+        if (string.Equals(filter.View, "mine", StringComparison.OrdinalIgnoreCase))
         {
-            var lowered = filter.Query.Trim().ToLower();
-            queryable = queryable.Where(c =>
-                c.Title.ToLower().Contains(lowered)
-                || c.ContractNumber.ToLower().Contains(lowered)
-                || (c.Vendor != null && c.Vendor.Name.ToLower().Contains(lowered)));
+            var oid = _userContext.UserId ?? Guid.Empty;
+            query = query.Where(c =>
+                c.OverallStatus == OverallStatus.Active
+                && c.Lanes.Any(l => l.OwnerUserId == oid
+                    && (l.Status == LaneStatus.InReview || l.Status == LaneStatus.Waiting)));
+        }
+        else if (string.Equals(filter.View, "submissions", StringComparison.OrdinalIgnoreCase))
+        {
+            // Already constrained via ApplyListFilter for Requester role, but be explicit.
+            var oid = _userContext.UserId ?? Guid.Empty;
+            query = query.Where(c => c.RequesterUserId == oid);
+        }
+        else if (string.Equals(filter.View, "reviews", StringComparison.OrdinalIgnoreCase))
+        {
+            var oid = _userContext.UserId ?? Guid.Empty;
+            query = query.Where(c => c.Assignments.Any(a => a.ReviewerUserId == oid));
+        }
+        else
+        {
+            // master view (or null) — Procurement sees all active by default; the archive endpoint
+            // covers completed/canceled.
+            query = query.Where(c => c.OverallStatus == OverallStatus.Active);
         }
 
-        var total = await queryable.CountAsync(ct).ConfigureAwait(false);
-        var today = _clock.UtcNow.Date;
+        if (filter.Category.HasValue) query = query.Where(c => c.Category == filter.Category.Value);
+        if (filter.Priority.HasValue) query = query.Where(c => c.Priority == filter.Priority.Value);
+        if (filter.ProcurementOwnerUserId.HasValue)
+            query = query.Where(c => c.ProcurementOwnerUserId == filter.ProcurementOwnerUserId.Value);
 
-        queryable = ApplySort(queryable, filter.SortBy, filter.SortDir);
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var pattern = $"%{filter.Query.Trim()}%";
+            query = query.Where(c =>
+                EF.Functions.Like(c.Title, pattern)
+                || EF.Functions.Like(c.ContractNumber, pattern)
+                || (c.Vendor != null && EF.Functions.Like(c.Vendor.Name, pattern))
+                || (c.Requester != null && EF.Functions.Like(c.Requester.DisplayName, pattern)));
+        }
 
-        var rows = await queryable
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var pageOfContracts = await query
+            .OrderByDescending(c => c.Priority)
+            .ThenByDescending(c => c.LastActionAt)
             .Skip((clampedPage - 1) * clampedSize)
             .Take(clampedSize)
-            .Select(c => new ContractRowDto(
+            .Select(c => new
+            {
                 c.ContractId,
                 c.ContractNumber,
                 c.Title,
                 c.Category,
-                c.Status,
-                c.Vendor!.Name,
+                c.OverallStatus,
+                c.Priority,
                 c.VendorId,
-                c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName,
-                c.AssignedReviewerUserId == null
-                    ? null
-                    : c.Assignments
-                        .Where(a => a.ReviewerUserId == c.AssignedReviewerUserId)
-                        .OrderByDescending(a => a.AssignedAt)
-                        .Select(a => a.ReviewerTeam)
-                        .FirstOrDefault(),
-                c.AssignedReviewerUserId,
+                VendorName = c.Vendor != null ? c.Vendor.Name : string.Empty,
+                c.RequesterUserId,
+                RequesterName = c.Requester != null ? c.Requester.DisplayName : string.Empty,
+                c.ProcurementOwnerUserId,
+                ProcurementOwnerName = c.ProcurementOwner != null ? c.ProcurementOwner.DisplayName : null,
                 c.TotalCostUsd,
+                c.TermStartDate,
                 c.TermEndDate,
+                c.SubmittedAt,
                 c.LastActionAt,
-                c.NextActionDueAt,
-                c.AssignedReviewerUserId == null
-                    || (c.NextActionDueAt != null && c.NextActionDueAt < today),
-                c.AssignedReviewerUserId == null ? "Unassigned — needs a reviewer"
-                    : (c.NextActionDueAt != null && c.NextActionDueAt < today ? "Past due" : null)))
-            .ToListAsync(ct).ConfigureAwait(false);
+                Lanes = c.Lanes
+                    .OrderBy(l => l.LaneId)
+                    .Select(l => new
+                    {
+                        l.LaneId,
+                        l.Status,
+                        l.OwnerUserId,
+                        OwnerName = l.Owner != null ? l.Owner.DisplayName : null,
+                        l.DueDate,
+                    }).ToList(),
+            })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        return new PagedResult<ContractRowDto>(rows, total, clampedPage, clampedSize);
+        var rows = pageOfContracts.Select(c => new ContractRowDto(
+            c.ContractId, c.ContractNumber, c.Title, c.Category, c.OverallStatus, c.Priority,
+            c.VendorId, c.VendorName,
+            c.RequesterUserId, c.RequesterName,
+            c.ProcurementOwnerUserId, c.ProcurementOwnerName,
+            c.TotalCostUsd, c.TermStartDate, c.TermEndDate, c.SubmittedAt, c.LastActionAt,
+            c.Lanes.Count(l => l.Status == LaneStatus.InReview || l.Status == LaneStatus.Waiting),
+            c.Lanes.Select(l => new LanePillDto(l.LaneId, l.Status, l.OwnerName, l.DueDate)).ToList())).ToList();
+
+        return new PagedResult<ContractRowDto>(rows, clampedPage, clampedSize, total);
     }
 
-    public async Task<TriageCountsDto> GetTriageCountsAsync(CancellationToken ct)
+    public async Task<PagedResult<ContractRowDto>> ArchiveAsync(ContractArchiveFilter filter, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var queryable = _access.ApplyListFilter(_db.Contracts.AsNoTracking())
-            .Where(c =>
-                c.Status != ContractStatus.Completed
-                && c.Status != ContractStatus.Canceled
-                && c.Status != ContractStatus.Expired
-                && c.Status != ContractStatus.Terminated);
+        var clampedPage = page < 1 ? 1 : page;
+        var clampedSize = pageSize < 1 ? 50 : Math.Min(pageSize, MaxPageSize);
 
-        var today = _clock.UtcNow.Date;
-        var soon = today.AddDays(ExpiringSoonDays);
+        var query = _access.ApplyListFilter(_db.Contracts.AsNoTracking())
+            .Where(c => c.OverallStatus == OverallStatus.Completed || c.OverallStatus == OverallStatus.Canceled);
 
-        var all = await queryable.CountAsync(ct).ConfigureAwait(false);
-        var action = await queryable.CountAsync(c =>
-            c.AssignedReviewerUserId == null
-            || (c.NextActionDueAt != null && c.NextActionDueAt < today), ct).ConfigureAwait(false);
-        var review = await queryable.CountAsync(c =>
-            c.Status == ContractStatus.WithLegal
-            || c.Status == ContractStatus.WithGCO
-            || c.Status == ContractStatus.WithInfoSec
-            || c.Status == ContractStatus.WithPrivacy, ct).ConfigureAwait(false);
-        var sign = await queryable.CountAsync(c => c.Status == ContractStatus.OutForSignature, ct).ConfigureAwait(false);
-        var expiring = await queryable.CountAsync(c =>
-            c.TermEndDate != null && c.TermEndDate >= today && c.TermEndDate <= soon, ct).ConfigureAwait(false);
-        var closed = await queryable.CountAsync(c => c.Status == ContractStatus.OnHold, ct).ConfigureAwait(false);
-
-        return new TriageCountsDto(all, action, review, sign, expiring, closed);
-    }
-
-    private static IQueryable<Contract> ApplySort(IQueryable<Contract> source, string? sortBy, string? sortDir)
-    {
-        var ascending = !string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
-        return sortBy?.ToLowerInvariant() switch
+        if (filter.Year.HasValue)
         {
-            "title" => ascending ? source.OrderBy(c => c.Title) : source.OrderByDescending(c => c.Title),
-            "vendor" => ascending ? source.OrderBy(c => c.Vendor!.Name) : source.OrderByDescending(c => c.Vendor!.Name),
-            "category" => ascending ? source.OrderBy(c => c.Category) : source.OrderByDescending(c => c.Category),
-            "stage" => ascending ? source.OrderBy(c => c.Status) : source.OrderByDescending(c => c.Status),
-            "reviewer" => ascending
-                ? source.OrderBy(c => c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName)
-                : source.OrderByDescending(c => c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName),
-            "value" => ascending ? source.OrderBy(c => c.TotalCostUsd) : source.OrderByDescending(c => c.TotalCostUsd),
-            "expires" => ascending ? source.OrderBy(c => c.TermEndDate) : source.OrderByDescending(c => c.TermEndDate),
-            "lastaction" => ascending ? source.OrderBy(c => c.LastActionAt) : source.OrderByDescending(c => c.LastActionAt),
-            "nextdue" => ascending ? source.OrderBy(c => c.NextActionDueAt) : source.OrderByDescending(c => c.NextActionDueAt),
-            _ => source.OrderBy(c => c.NextActionDueAt == null).ThenBy(c => c.NextActionDueAt).ThenBy(c => c.ContractId),
-        };
-    }
-
-    public async Task<PagedResult<ContractRowDto>> ListArchiveAsync(
-        string? query, int? year, int page, int pageSize, CancellationToken ct)
-    {
-        var clampedSize = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
-        var clampedPage = Math.Max(page, 1);
-
-        var queryable = _access.ApplyListFilter(_db.Contracts.AsNoTracking())
-            .Where(c =>
-                c.Status == ContractStatus.Completed
-                || c.Status == ContractStatus.Canceled
-                || c.Status == ContractStatus.Expired
-                || c.Status == ContractStatus.Terminated);
-
-        if (year is int filterYear)
-        {
-            queryable = queryable.Where(c => c.SubmittedAt.Year == filterYear);
-        }
-        if (!string.IsNullOrWhiteSpace(query))
-        {
-            var lowered = query.Trim().ToLower();
-            queryable = queryable.Where(c =>
-                c.Title.ToLower().Contains(lowered)
-                || c.ContractNumber.ToLower().Contains(lowered)
-                || (c.Vendor != null && c.Vendor.Name.ToLower().Contains(lowered)));
+            var start = new DateTime(filter.Year.Value, 1, 1);
+            var end = start.AddYears(1);
+            query = query.Where(c => c.SubmittedAt >= start && c.SubmittedAt < end);
         }
 
-        var total = await queryable.CountAsync(ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(filter.Query))
+        {
+            var pattern = $"%{filter.Query.Trim()}%";
+            query = query.Where(c =>
+                EF.Functions.Like(c.Title, pattern)
+                || EF.Functions.Like(c.ContractNumber, pattern)
+                || (c.Vendor != null && EF.Functions.Like(c.Vendor.Name, pattern)));
+        }
 
-        var rows = await queryable
+        var total = await query.CountAsync(cancellationToken).ConfigureAwait(false);
+
+        var pageOfContracts = await query
             .OrderByDescending(c => c.LastActionAt)
             .Skip((clampedPage - 1) * clampedSize)
             .Take(clampedSize)
-            .Select(c => new ContractRowDto(
-                c.ContractId, c.ContractNumber, c.Title, c.Category, c.Status,
-                c.Vendor!.Name, c.VendorId,
-                c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName,
-                c.AssignedReviewerUserId == null
-                    ? null
-                    : c.Assignments
-                        .Where(a => a.ReviewerUserId == c.AssignedReviewerUserId)
-                        .OrderByDescending(a => a.AssignedAt)
-                        .Select(a => a.ReviewerTeam)
-                        .FirstOrDefault(),
-                c.AssignedReviewerUserId,
-                c.TotalCostUsd, c.TermEndDate, c.LastActionAt, c.NextActionDueAt,
-                false, null))
-            .ToListAsync(ct).ConfigureAwait(false);
+            .Select(c => new
+            {
+                c.ContractId, c.ContractNumber, c.Title, c.Category, c.OverallStatus, c.Priority,
+                c.VendorId,
+                VendorName = c.Vendor != null ? c.Vendor.Name : string.Empty,
+                c.RequesterUserId,
+                RequesterName = c.Requester != null ? c.Requester.DisplayName : string.Empty,
+                c.ProcurementOwnerUserId,
+                ProcurementOwnerName = c.ProcurementOwner != null ? c.ProcurementOwner.DisplayName : null,
+                c.TotalCostUsd, c.TermStartDate, c.TermEndDate, c.SubmittedAt, c.LastActionAt,
+                Lanes = c.Lanes.OrderBy(l => l.LaneId).Select(l => new
+                {
+                    l.LaneId, l.Status, l.OwnerUserId,
+                    OwnerName = l.Owner != null ? l.Owner.DisplayName : null,
+                    l.DueDate,
+                }).ToList(),
+            })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        return new PagedResult<ContractRowDto>(rows, total, clampedPage, clampedSize);
+        var rows = pageOfContracts.Select(c => new ContractRowDto(
+            c.ContractId, c.ContractNumber, c.Title, c.Category, c.OverallStatus, c.Priority,
+            c.VendorId, c.VendorName,
+            c.RequesterUserId, c.RequesterName,
+            c.ProcurementOwnerUserId, c.ProcurementOwnerName,
+            c.TotalCostUsd, c.TermStartDate, c.TermEndDate, c.SubmittedAt, c.LastActionAt,
+            0, // archive rows have no active lanes by definition
+            c.Lanes.Select(l => new LanePillDto(l.LaneId, l.Status, l.OwnerName, l.DueDate)).ToList())).ToList();
+
+        return new PagedResult<ContractRowDto>(rows, clampedPage, clampedSize, total);
     }
 
-    public async Task<PagedResult<RenewalRowDto>> ListRenewalsAsync(
-        int windowDays, Category? category, Guid? reviewerUserId, int page, int pageSize, CancellationToken ct)
+    public async Task<ContractDetailDto?> GetAsync(int contractId, CancellationToken cancellationToken)
     {
-        var clampedSize = Math.Clamp(pageSize <= 0 ? DefaultPageSize : pageSize, 1, MaxPageSize);
-        var clampedPage = Math.Max(page, 1);
-        var clampedWindow = Math.Clamp(windowDays, 1, 365);
-
-        var today = _clock.UtcNow.Date;
-        var horizon = today.AddDays(clampedWindow);
-
-        var queryable = _access.ApplyListFilter(_db.Contracts.AsNoTracking())
-            .Where(c => c.TermEndDate != null && c.TermEndDate >= today && c.TermEndDate <= horizon);
-
-        if (category is Category cat) queryable = queryable.Where(c => c.Category == cat);
-        if (reviewerUserId is Guid rev) queryable = queryable.Where(c => c.AssignedReviewerUserId == rev);
-
-        var total = await queryable.CountAsync(ct).ConfigureAwait(false);
-
-        var rows = await queryable
-            .OrderBy(c => c.TermEndDate)
-            .Skip((clampedPage - 1) * clampedSize)
-            .Take(clampedSize)
-            .Select(c => new RenewalRowDto(
-                c.ContractId, c.ContractNumber, c.Title, c.Category,
-                c.Vendor!.Name, c.TermEndDate,
-                c.TermEndDate == null ? (int?)null : (int)(c.TermEndDate.Value - today).TotalDays,
-                c.Status,
-                c.AssignedReviewer == null ? null : c.AssignedReviewer.DisplayName,
-                _db.Contracts.Any(other =>
-                    other.VendorId == c.VendorId
-                    && other.ContractId != c.ContractId
-                    && other.SubmittedAt > c.SubmittedAt
-                    && other.TermStartDate != null && other.TermStartDate <= horizon)))
-            .ToListAsync(ct).ConfigureAwait(false);
-
-        return new PagedResult<RenewalRowDto>(rows, total, clampedPage, clampedSize);
-    }
-
-    public async Task<ContractDetailDto?> GetAsync(int contractId, CancellationToken ct)
-    {
-        if (!await _access.CanAccessAsync(contractId, ct).ConfigureAwait(false)) return null;
-        return await BuildDetailAsync(contractId, ct).ConfigureAwait(false);
-    }
-
-    public async Task<ContractDetailDto> CreateAsync(CreateContractRequest request, CancellationToken ct)
-    {
-        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.VendorId == request.VendorId, ct).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Vendor not found");
-
-        if (vendor.PreferredStatus == PreferredStatus.Blacklisted
-            && !_userContext.IsInRole(Auth.AppRoles.Procurement))
+        if (!await _access.CanAccessAsync(contractId, cancellationToken).ConfigureAwait(false))
         {
-            throw new InvalidOperationException("Vendor is blacklisted; Procurement override required");
+            return null; // controller returns 403 — 404 leaks existence
         }
 
-        var requesterId = _userContext.UserId
-            ?? throw new InvalidOperationException("Authenticated requester required");
-
-        var now = _clock.UtcNow;
-        var contract = new Contract
-        {
-            ContractNumber = await _numberGenerator.NextAsync(ct).ConfigureAwait(false),
-            Title = request.Title,
-            Category = request.Category,
-            Status = ContractStatus.InProcess,
-            VendorId = request.VendorId,
-            RequesterUserId = requesterId,
-            TotalCostUsd = request.TotalCostUsd,
-            SignatureDeadline = request.SignatureDeadline,
-            SubmittedAt = now,
-            TermStartDate = request.TermStartDate,
-            TermEndDate = request.TermEndDate,
-            LastActionAt = now,
-            Description = request.Description,
-            EventDate = request.EventDate,
-            VenueLocation = request.VenueLocation,
-            PartOfLargerEvent = request.PartOfLargerEvent,
-            ParentEventName = request.ParentEventName,
-            ServiceDescription = request.ServiceDescription,
-            ITType = request.ITType,
-            ApplicationName = request.ApplicationName,
-            ApplicationVersion = request.ApplicationVersion,
-            LicensingType = request.LicensingType,
-            NumberOfUsers = request.NumberOfUsers,
-            CloudOrOnPrem = request.CloudOrOnPrem,
-            SystemAccess = request.SystemAccess,
-            Permissions = request.Permissions,
-            Integrations = request.Integrations,
-            AccessesPersonalData = request.AccessesPersonalData,
-            AccessesPHI = request.AccessesPHI,
-            UsesAI = request.UsesAI,
-        };
-        _db.Contracts.Add(contract);
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        _activity.Record(contract, ActivityType.Created, $"Contract {contract.ContractNumber} submitted");
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-
-        return (await BuildDetailAsync(contract.ContractId, ct).ConfigureAwait(false))!;
-    }
-
-    public async Task<ContractDetailDto?> UpdateStatusAsync(int contractId, UpdateStatusRequest request, CancellationToken ct)
-    {
-        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, ct).ConfigureAwait(false);
-        if (contract is null) return null;
-
-        if (!await _access.CanEditAsync(contractId, ct).ConfigureAwait(false)) return null;
-
-        if (contract.Status == request.NewStatus)
-        {
-            return await BuildDetailAsync(contractId, ct).ConfigureAwait(false);
-        }
-
-        var fromStatus = contract.Status;
-        contract.Status = request.NewStatus;
-        _activity.Record(contract, ActivityType.StatusChanged,
-            $"Status changed from {fromStatus} to {request.NewStatus}",
-            $"{{\"from\":\"{fromStatus}\",\"to\":\"{request.NewStatus}\"}}");
-
-        // Reset reminder window when leaving OutForSignature
-        if (fromStatus == ContractStatus.OutForSignature && request.NewStatus != ContractStatus.OutForSignature)
-        {
-            contract.LastReminderSentAt = null;
-        }
-
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-        return await BuildDetailAsync(contractId, ct).ConfigureAwait(false);
-    }
-
-    public async Task<ContractDetailDto?> UpdateNextDueAsync(int contractId, UpdateNextDueRequest request, CancellationToken ct)
-    {
-        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, ct).ConfigureAwait(false);
-        if (contract is null) return null;
-        if (!await _access.CanEditAsync(contractId, ct).ConfigureAwait(false)) return null;
-
-        contract.NextActionDueAt = request.NextActionDueDate;
-        _activity.Record(contract, ActivityType.NextDueUpdated,
-            request.NextActionDueDate is DateTime due
-                ? $"Next action due set to {due:yyyy-MM-dd}"
-                : "Next action due cleared");
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-        return await BuildDetailAsync(contractId, ct).ConfigureAwait(false);
-    }
-
-    public async Task<ContractDetailDto?> UpdateReviewerAsync(int contractId, UpdateReviewerRequest request, CancellationToken ct)
-    {
-        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, ct).ConfigureAwait(false);
-        if (contract is null) return null;
-        if (!await _access.CanEditAsync(contractId, ct).ConfigureAwait(false)) return null;
-
-        contract.AssignedReviewerUserId = request.LeadReviewerUserId;
-        var description = request.LeadReviewerUserId is Guid id
-            ? $"Lead reviewer reassigned to {id}"
-            : "Lead reviewer cleared";
-        _activity.Record(contract, ActivityType.Reassigned, description);
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-        return await BuildDetailAsync(contractId, ct).ConfigureAwait(false);
-    }
-
-    public async Task<bool> SoftDeleteAsync(int contractId, CancellationToken ct)
-    {
-        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, ct).ConfigureAwait(false);
-        if (contract is null) return false;
-        if (!await _access.CanEditAsync(contractId, ct).ConfigureAwait(false)) return false;
-
-        // Interceptor converts hard delete to soft delete + flags IsDeleted/DeletedAt.
-        _db.Contracts.Remove(contract);
-        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
-        return true;
-    }
-
-    private IQueryable<Contract> ApplyTriage(IQueryable<Contract> queryable, string? triage)
-    {
-        if (string.IsNullOrEmpty(triage) || string.Equals(triage, "all", StringComparison.OrdinalIgnoreCase))
-        {
-            return queryable;
-        }
-
-        var today = _clock.UtcNow.Date;
-        return triage.ToLowerInvariant() switch
-        {
-            "action" => queryable.Where(c =>
-                c.AssignedReviewerUserId == null
-                || (c.NextActionDueAt != null && c.NextActionDueAt < today)),
-            "review" => queryable.Where(c =>
-                c.Status == ContractStatus.WithLegal
-                || c.Status == ContractStatus.WithGCO
-                || c.Status == ContractStatus.WithInfoSec
-                || c.Status == ContractStatus.WithPrivacy),
-            "sign" => queryable.Where(c => c.Status == ContractStatus.OutForSignature),
-            "expiring" => queryable.Where(c => c.TermEndDate != null
-                && c.TermEndDate >= today
-                && c.TermEndDate <= today.AddDays(ExpiringSoonDays)),
-            "closed" => queryable.Where(c => c.Status == ContractStatus.OnHold),
-            _ => queryable,
-        };
-    }
-
-    private async Task<ContractDetailDto?> BuildDetailAsync(int contractId, CancellationToken ct)
-    {
         var contract = await _db.Contracts.AsNoTracking()
             .Include(c => c.Vendor)
             .Include(c => c.Requester)
-            .Include(c => c.AssignedReviewer)
-            .FirstOrDefaultAsync(c => c.ContractId == contractId, ct).ConfigureAwait(false);
+            .Include(c => c.ProcurementOwner)
+            .Include(c => c.FieldValues)
+            .ThenInclude(v => v.CategoryField)
+            .Where(c => c.ContractId == contractId)
+            .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+
+        return contract is null ? null : ProjectDetail(contract);
+    }
+
+    public async Task<ContractDetailDto> CreateAsync(CreateContractRequest request, CancellationToken cancellationToken)
+    {
+        var vendor = await _db.Vendors.FirstOrDefaultAsync(v => v.VendorId == request.VendorId, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Vendor {request.VendorId} not found");
+
+        // Blacklisted vendor blocks Requester submit unless ProcurementOverride=true with a reason.
+        if (vendor.PreferredStatus == PreferredStatus.Blacklisted)
+        {
+            var isProcurement = _userContext.IsInRole(AppRoles.Procurement) || _userContext.IsInRole(AppRoles.ProcurementAdmin);
+            if (!isProcurement || !request.ProcurementOverride || string.IsNullOrWhiteSpace(request.OverrideReason))
+            {
+                throw new InvalidOperationException("Vendor is blacklisted. Procurement override + reason required.");
+            }
+        }
+
+        var now = _clock.UtcNow;
+        var contractNumber = await _numberGenerator.NextAsync(cancellationToken).ConfigureAwait(false);
+
+        var contract = new Contract
+        {
+            ContractNumber = contractNumber,
+            Title = request.Title.Trim(),
+            Category = request.Category,
+            OverallStatus = OverallStatus.Active,
+            Priority = request.Priority,
+            VendorId = request.VendorId,
+            RequesterUserId = _userContext.UserId ?? Guid.Empty,
+            RequesterEmail = request.RequesterEmail.Trim(),
+            ProcurementOwnerUserId = null,
+            TotalCostUsd = request.TotalCostUsd,
+            TermStartDate = request.TermStartDate,
+            TermEndDate = request.TermEndDate,
+            Description = request.Description,
+            SubmittedAt = now,
+            LastActionAt = now,
+        };
+
+        ApplyCategoryFields(contract, request.EventFields, request.FacilitiesFields, request.ItFields);
+
+        _db.Contracts.Add(contract);
+
+        // Insert the 9 lanes — Procurement = InReview, others = NotStarted (ADR-030).
+        foreach (var laneId in Enum.GetValues<LaneId>())
+        {
+            contract.Lanes.Add(new ContractLane
+            {
+                LaneId = laneId,
+                Status = laneId == LaneId.Procurement ? LaneStatus.InReview : LaneStatus.NotStarted,
+                LastUpdated = now,
+            });
+        }
+
+        _activity.Record(contract, ActivityType.ContractCreated, $"Contract {contractNumber} created.");
+
+        // Save once so ContractId + ContractLane FKs resolve correctly.
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        // Custom (admin) field values write after save so we have a stable ContractId.
+        await ApplyCustomFieldValuesAsync(contract.ContractId, request.Category, request.CustomFieldValues, cancellationToken).ConfigureAwait(false);
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return (await GetAsync(contract.ContractId, cancellationToken).ConfigureAwait(false))
+            ?? throw new InvalidOperationException("Contract created but could not be read back.");
+    }
+
+    public async Task<ContractDetailDto?> UpdateAsync(int contractId, UpdateContractRequest request, CancellationToken cancellationToken)
+    {
+        if (!await _access.CanAccessAsync(contractId, cancellationToken).ConfigureAwait(false)) return null;
+        if (!await _access.CanEditAsync(contractId, cancellationToken).ConfigureAwait(false))
+        {
+            throw new UnauthorizedAccessException("Only Procurement can edit contract headers.");
+        }
+
+        var contract = await _db.Contracts
+            .Include(c => c.FieldValues)
+            .FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
         if (contract is null) return null;
 
-        var commentCount = await _db.ContractComments.CountAsync(x => x.ContractId == contractId, ct).ConfigureAwait(false);
-        var noteCount = await _db.ContractNotes.CountAsync(x => x.ContractId == contractId, ct).ConfigureAwait(false);
-        var attachmentCount = await _db.ContractAttachments.CountAsync(x => x.ContractId == contractId, ct).ConfigureAwait(false);
-        var canEdit = await _access.CanEditAsync(contractId, ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(request.Title)) contract.Title = request.Title!.Trim();
+        if (request.Priority.HasValue) contract.Priority = request.Priority.Value;
+        if (request.VendorId.HasValue) contract.VendorId = request.VendorId.Value;
+        if (!string.IsNullOrWhiteSpace(request.RequesterEmail)) contract.RequesterEmail = request.RequesterEmail!.Trim();
+        if (request.TotalCostUsd.HasValue) contract.TotalCostUsd = request.TotalCostUsd;
+        if (request.TermStartDate.HasValue) contract.TermStartDate = request.TermStartDate;
+        if (request.TermEndDate.HasValue) contract.TermEndDate = request.TermEndDate;
+        if (request.Description is not null) contract.Description = request.Description;
+
+        ApplyCategoryFields(contract, request.EventFields, request.FacilitiesFields, request.ItFields);
+
+        _activity.Record(contract, ActivityType.OwnerReassigned, $"Contract {contract.ContractNumber} header updated.");
+
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (request.CustomFieldValues is { Count: > 0 })
+        {
+            await ApplyCustomFieldValuesAsync(contract.ContractId, contract.Category, request.CustomFieldValues, cancellationToken).ConfigureAwait(false);
+            await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await GetAsync(contract.ContractId, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> UpdateOverallStatusAsync(int contractId, UpdateOverallStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (!await _access.CanAccessAsync(contractId, cancellationToken).ConfigureAwait(false)) return false;
+        if (!await _access.CanEditAsync(contractId, cancellationToken).ConfigureAwait(false))
+        {
+            throw new UnauthorizedAccessException("Only Procurement can change overall status.");
+        }
+
+        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
+        if (contract is null) return false;
+
+        var previous = contract.OverallStatus;
+        if (previous == request.OverallStatus) return true; // no-op
+
+        contract.OverallStatus = request.OverallStatus;
+        var reasonNote = string.IsNullOrWhiteSpace(request.Reason) ? string.Empty : $" — {request.Reason}";
+        _activity.Record(contract, ActivityType.OverallStatusChanged,
+            $"Overall status {previous} → {request.OverallStatus}{reasonNote}",
+            $"{{\"from\":\"{previous}\",\"to\":\"{request.OverallStatus}\"}}");
+
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task<bool> UpdateProcurementOwnerAsync(int contractId, UpdateProcurementOwnerRequest request, CancellationToken cancellationToken)
+    {
+        if (!await _access.CanAccessAsync(contractId, cancellationToken).ConfigureAwait(false)) return false;
+        if (!await _access.CanEditAsync(contractId, cancellationToken).ConfigureAwait(false))
+        {
+            throw new UnauthorizedAccessException("Only Procurement can reassign the Procurement owner.");
+        }
+
+        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
+        if (contract is null) return false;
+
+        contract.ProcurementOwnerUserId = request.ProcurementOwnerUserId;
+        _activity.Record(contract, ActivityType.OwnerReassigned,
+            request.ProcurementOwnerUserId.HasValue
+                ? $"Procurement owner reassigned."
+                : $"Procurement owner unset.");
+
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task<bool> SoftDeleteAsync(int contractId, CancellationToken cancellationToken)
+    {
+        if (!await _access.CanAccessAsync(contractId, cancellationToken).ConfigureAwait(false)) return false;
+        if (!await _access.CanEditAsync(contractId, cancellationToken).ConfigureAwait(false))
+        {
+            throw new UnauthorizedAccessException("Only Procurement can delete contracts.");
+        }
+
+        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
+        if (contract is null) return false;
+
+        contract.IsDeleted = true;
+        contract.DeletedAt = _clock.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    // -------------------------------- helpers --------------------------------
+
+    private ContractDetailDto ProjectDetail(Contract contract)
+    {
+        var customFieldValues = contract.FieldValues
+            .Where(v => !v.IsDeleted)
+            .ToDictionary(v => v.FieldKey, v => v.ValueText);
 
         return new ContractDetailDto(
             contract.ContractId,
             contract.ContractNumber,
             contract.Title,
             contract.Category,
-            contract.Status,
+            contract.OverallStatus,
+            contract.Priority,
             contract.VendorId,
-            contract.Vendor!.Name,
-            contract.Vendor.PreferredStatus,
+            contract.Vendor?.Name ?? string.Empty,
+            contract.Vendor?.PreferredStatus ?? PreferredStatus.Standard,
             contract.RequesterUserId,
             contract.Requester?.DisplayName ?? string.Empty,
-            contract.AssignedReviewerUserId,
-            contract.AssignedReviewer?.DisplayName,
+            contract.RequesterEmail,
+            contract.ProcurementOwnerUserId,
+            contract.ProcurementOwner?.DisplayName,
             contract.TotalCostUsd,
-            contract.SignatureDeadline,
-            contract.SubmittedAt,
             contract.TermStartDate,
             contract.TermEndDate,
+            contract.SubmittedAt,
             contract.LastActionAt,
-            contract.NextActionDueAt,
             contract.Description,
-            contract.EventDate,
-            contract.VenueLocation,
-            contract.PartOfLargerEvent,
-            contract.ParentEventName,
-            contract.ServiceDescription,
-            contract.ITType,
-            contract.ApplicationName,
-            contract.ApplicationVersion,
-            contract.LicensingType,
-            contract.NumberOfUsers,
-            contract.CloudOrOnPrem,
-            contract.SystemAccess,
-            contract.Permissions,
-            contract.Integrations,
-            contract.AccessesPersonalData,
-            contract.AccessesPHI,
-            contract.UsesAI,
-            commentCount,
-            noteCount,
-            attachmentCount,
-            canEdit);
+            contract.Category == Category.Event
+                ? new EventFieldsDto(contract.EventName, contract.EventDate, contract.VenueLocation, contract.ParentEventName)
+                : null,
+            contract.Category == Category.Facilities
+                ? new FacilitiesFieldsDto(contract.Building, contract.ServiceDescription)
+                : null,
+            contract.Category == Category.IT
+                ? new ItFieldsDto(contract.ITType, contract.ApplicationName, contract.ApplicationVersion,
+                    contract.LicensingType, contract.NumberOfUsers, contract.CloudOrOnPrem,
+                    contract.SystemAccess, contract.Permissions, contract.Integrations,
+                    contract.AccessesPersonalData, contract.AccessesPHI, contract.UsesAI)
+                : null,
+            customFieldValues,
+            CapabilitiesForCaller());
+    }
+
+    private ContractCapabilitiesDto CapabilitiesForCaller()
+    {
+        var isProc = _userContext.IsInRole(AppRoles.Procurement) || _userContext.IsInRole(AppRoles.ProcurementAdmin);
+        return new ContractCapabilitiesDto(
+            CanEditHeader: isProc,
+            CanUpdateLanes: isProc,
+            CanManageAssignments: isProc,
+            CanSendReminder: isProc,
+            CanSeeInternalOnlyComments: _access.CanSeeInternalOnlyComments(),
+            CanSeeNotes: _access.CanSeeNotesTab());
+    }
+
+    private static void ApplyCategoryFields(Contract contract, EventFieldsDto? eventFields, FacilitiesFieldsDto? facilitiesFields, ItFieldsDto? itFields)
+    {
+        // Null out everything category-specific first, then populate only the category in play.
+        contract.EventName = null;
+        contract.EventDate = null;
+        contract.VenueLocation = null;
+        contract.ParentEventName = null;
+        contract.Building = null;
+        contract.ServiceDescription = null;
+        contract.ITType = null;
+        contract.ApplicationName = null;
+        contract.ApplicationVersion = null;
+        contract.LicensingType = null;
+        contract.NumberOfUsers = null;
+        contract.CloudOrOnPrem = null;
+        contract.SystemAccess = null;
+        contract.Permissions = null;
+        contract.Integrations = null;
+        contract.AccessesPersonalData = null;
+        contract.AccessesPHI = null;
+        contract.UsesAI = null;
+
+        switch (contract.Category)
+        {
+            case Category.Event when eventFields is not null:
+                contract.EventName = eventFields.EventName;
+                contract.EventDate = eventFields.EventDate;
+                contract.VenueLocation = eventFields.VenueLocation;
+                contract.ParentEventName = eventFields.ParentEventName;
+                break;
+            case Category.Facilities when facilitiesFields is not null:
+                contract.Building = facilitiesFields.Building;
+                contract.ServiceDescription = facilitiesFields.ServiceDescription;
+                break;
+            case Category.IT when itFields is not null:
+                contract.ITType = itFields.ITType;
+                contract.ApplicationName = itFields.ApplicationName;
+                contract.ApplicationVersion = itFields.ApplicationVersion;
+                contract.LicensingType = itFields.LicensingType;
+                contract.NumberOfUsers = itFields.NumberOfUsers;
+                contract.CloudOrOnPrem = itFields.CloudOrOnPrem;
+                contract.SystemAccess = itFields.SystemAccess;
+                contract.Permissions = itFields.Permissions;
+                contract.Integrations = itFields.Integrations;
+                contract.AccessesPersonalData = itFields.AccessesPersonalData;
+                contract.AccessesPHI = itFields.AccessesPHI;
+                contract.UsesAI = itFields.UsesAI;
+                break;
+        }
+    }
+
+    private async Task ApplyCustomFieldValuesAsync(int contractId, Category category,
+        IDictionary<string, string?>? customFieldValues, CancellationToken cancellationToken)
+    {
+        if (customFieldValues is null || customFieldValues.Count == 0) return;
+
+        // Resolve admin (non-system) fields for this category. System fields are not stored here.
+        var fields = await _db.CategoryFields.AsNoTracking()
+            .Where(f => f.Category!.Code == category.ToString() && !f.IsSystemDefined && f.IsActive)
+            .Select(f => new { f.CategoryFieldId, f.FieldKey })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var byKey = fields.ToDictionary(f => f.FieldKey, f => f.CategoryFieldId);
+
+        var existing = await _db.ContractFieldValues
+            .Where(v => v.ContractId == contractId)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        var existingByKey = existing.ToDictionary(v => v.FieldKey, v => v);
+
+        foreach (var (key, value) in customFieldValues)
+        {
+            if (!byKey.TryGetValue(key, out var categoryFieldId)) continue; // unknown key — silently skip
+            if (existingByKey.TryGetValue(key, out var row))
+            {
+                row.ValueText = value;
+            }
+            else
+            {
+                _db.ContractFieldValues.Add(new ContractFieldValue
+                {
+                    ContractId = contractId,
+                    CategoryFieldId = categoryFieldId,
+                    FieldKey = key,
+                    ValueText = value,
+                });
+            }
+        }
     }
 }

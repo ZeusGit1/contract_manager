@@ -29,7 +29,7 @@ public class MeController : ControllerBase
         var profile = await _db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken).ConfigureAwait(false);
 
-        var roles = new[] { AppRoles.Procurement, AppRoles.Requester, AppRoles.AttorneyReviewer }
+        var roles = new[] { AppRoles.Procurement, AppRoles.ProcurementAdmin, AppRoles.Requester, AppRoles.AttorneyReviewer }
             .Where(_userContext.IsInRole).ToList();
 
         return Ok(new CurrentUserResponse(
