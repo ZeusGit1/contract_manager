@@ -60,6 +60,7 @@ export interface ITFields {
   itType: 'Software' | 'ProfessionalServices' | null;
   accessesPersonalData: boolean | null;
   accessesPHI: boolean | null;
+  accessesClientMatter: boolean | null;
   usesAI: boolean | null;
 }
 

@@ -77,6 +77,7 @@ public record ItFieldsDto(
     string? Integrations,
     bool? AccessesPersonalData,
     bool? AccessesPHI,
+    bool? AccessesClientMatter,
     bool? UsesAI);
 
 public record ContractCapabilitiesDto(

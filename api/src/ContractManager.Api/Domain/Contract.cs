@@ -62,6 +62,7 @@ public class Contract : AuditEntity
     public string? Integrations { get; set; }
     public bool? AccessesPersonalData { get; set; }
     public bool? AccessesPHI { get; set; }
+    public bool? AccessesClientMatter { get; set; }
     public bool? UsesAI { get; set; }
 
     public ICollection<ContractLane> Lanes { get; set; } = new List<ContractLane>();
