@@ -45,7 +45,13 @@ export const PHASE1_CONTRACTS: Phase1Contract[] = [
     endDate: '2027-08-31',
     description:
       'Annual renewal of Relativity One hosted eDiscovery platform. Pricing increase year-over-year; data residency clause requires Privacy + InfoSec review before signature.',
-    itFields: { itType: 'Software', accessesPersonalData: true, accessesPHI: false, usesAI: false },
+    itFields: {
+      itType: 'Software',
+      accessesPersonalData: true,
+      accessesPHI: false,
+      accessesClientMatter: true,
+      usesAI: false,
+    },
     lanes: [
       L(
         'procurement',
@@ -122,7 +128,13 @@ export const PHASE1_CONTRACTS: Phase1Contract[] = [
     endDate: '2029-10-31',
     description:
       'Three-year enterprise agreement renewal including Copilot pilot. Privacy review on Copilot data handling required.',
-    itFields: { itType: 'Software', accessesPersonalData: true, accessesPHI: false, usesAI: true },
+    itFields: {
+      itType: 'Software',
+      accessesPersonalData: true,
+      accessesPHI: false,
+      accessesClientMatter: true,
+      usesAI: true,
+    },
     lanes: [
       L(
         'procurement',
@@ -180,7 +192,13 @@ export const PHASE1_CONTRACTS: Phase1Contract[] = [
     startDate: '2026-08-01',
     endDate: '2027-07-31',
     description: 'Annual Westlaw Edge renewal at firm-wide seat count.',
-    itFields: { itType: 'Software', accessesPersonalData: false, accessesPHI: false, usesAI: true },
+    itFields: {
+      itType: 'Software',
+      accessesPersonalData: false,
+      accessesPHI: false,
+      accessesClientMatter: false,
+      usesAI: true,
+    },
     lanes: [
       L('procurement', 'in_review', 'Lauren Pike', 1, 'Signature packet ready to send.'),
       L('legal', 'approved', 'In-house', -19, null),
@@ -287,7 +305,13 @@ export const PHASE1_CONTRACTS: Phase1Contract[] = [
     endDate: '2027-09-30',
     description:
       'Pilot deployment of Harvey AI for contract review in M&A practice. AI + PHI flags raised by Privacy.',
-    itFields: { itType: 'Software', accessesPersonalData: true, accessesPHI: true, usesAI: true },
+    itFields: {
+      itType: 'Software',
+      accessesPersonalData: true,
+      accessesPHI: true,
+      accessesClientMatter: true,
+      usesAI: true,
+    },
     lanes: [
       L(
         'procurement',

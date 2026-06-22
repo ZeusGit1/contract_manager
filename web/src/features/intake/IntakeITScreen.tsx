@@ -30,6 +30,7 @@ interface FormState {
   integrations: string;
   accessesPersonalData: boolean;
   accessesPHI: boolean;
+  accessesClientMatter: boolean;
   usesAI: boolean;
 }
 
@@ -51,6 +52,7 @@ const INITIAL_FORM: FormState = {
   integrations: '',
   accessesPersonalData: false,
   accessesPHI: false,
+  accessesClientMatter: false,
   usesAI: false,
 };
 
@@ -196,7 +198,7 @@ export function IntakeITScreen() {
                   className={styles.input}
                 />
               </Field>
-              <Field label="Version / flavor (optional)">
+              <Field label="Version (optional)">
                 <input
                   type="text"
                   value={form.applicationVersion}
@@ -283,6 +285,11 @@ export function IntakeITScreen() {
           label="Accesses PHI"
           value={form.accessesPHI}
           onChange={(value) => updateField('accessesPHI', value)}
+        />
+        <RiskToggle
+          label="Accesses client/matter data"
+          value={form.accessesClientMatter}
+          onChange={(value) => updateField('accessesClientMatter', value)}
         />
         <RiskToggle
           label="Uses AI"
@@ -375,6 +382,7 @@ function buildCreateBody(form: FormState): Record<string, unknown> {
     integrations: form.integrations || null,
     accessesPersonalData: form.accessesPersonalData,
     accessesPHI: form.accessesPHI,
+    accessesClientMatter: form.accessesClientMatter,
     usesAI: form.usesAI,
   };
 }

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { findContract, daysFromTodayLocal } from '@/lib/phase1Data';
 import {
   LANE_STATUS_LABEL,
+  PROCUREMENT_OWNERS,
   isLaneOpen,
   laneDef,
   ownerByName,
@@ -33,6 +34,7 @@ export function ContractDetailScreen() {
   const [priority, setPriority] = useState<Phase1Contract['priority']>(
     contract?.priority ?? 'medium',
   );
+  const [owner, setOwner] = useState<string>(contract?.owner ?? PROCUREMENT_OWNERS[0].name);
   const [lanesExpanded, setLanesExpanded] = useState(false);
   const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const [activity, setActivity] = useState<{ icon: string; text: string; when: string }[]>(() =>
@@ -58,7 +60,7 @@ export function ContractDetailScreen() {
     );
   }
 
-  const ownerObj = ownerByName(contract.owner);
+  const ownerObj = ownerByName(owner);
   const isClosed = overallStatus !== 'active';
   const overallLabel =
     overallStatus === 'completed'
@@ -307,23 +309,56 @@ export function ContractDetailScreen() {
               {ownerObj ? (
                 <span
                   className={`${styles.ownerDot} ${styles[`ownerDot${ownerObj.tone}`]}`}
-                  style={{ width: 14, height: 14 }}
+                  style={{ width: 14, height: 14, flexShrink: 0 }}
                   aria-hidden="true"
                 />
               ) : null}
-              <div>
-                <div style={{ fontWeight: 600 }}>{contract.owner}</div>
-                <div
+              <label style={{ flex: 1, minWidth: 0 }}>
+                <span
                   style={{
+                    display: 'block',
                     fontSize: 11,
                     color: 'var(--text-secondary)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
+                    marginBottom: 4,
                   }}
                 >
-                  Procurement
-                </div>
-              </div>
+                  Reassign owner
+                </span>
+                <select
+                  value={owner}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setOwner(next);
+                    setActivity((prev) => [
+                      {
+                        icon: 'user-switch',
+                        text: `Procurement owner reassigned to ${next}`,
+                        when: 'Just now',
+                      },
+                      ...prev,
+                    ]);
+                  }}
+                  style={{
+                    width: '100%',
+                    minWidth: 0,
+                    padding: '8px 10px',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    borderRadius: 'var(--radius)',
+                    font: 'inherit',
+                    fontWeight: 600,
+                  }}
+                >
+                  {PROCUREMENT_OWNERS.map((o) => (
+                    <option key={o.name} value={o.name}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </RailCard>
           <RailCard title="Key facts">
@@ -827,6 +862,10 @@ function TabContent({
               value={ynLabel(contract.itFields.accessesPersonalData)}
             />
             <Def label="Accesses PHI" value={ynLabel(contract.itFields.accessesPHI)} />
+            <Def
+              label="Accesses client/matter data"
+              value={ynLabel(contract.itFields.accessesClientMatter)}
+            />
             <Def label="Uses AI" value={ynLabel(contract.itFields.usesAI)} />
           </>
         ) : null}

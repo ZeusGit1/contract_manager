@@ -436,7 +436,7 @@ public class ContractService : IContractService
                 ? new ItFieldsDto(contract.ITType, contract.ApplicationName, contract.ApplicationVersion,
                     contract.LicensingType, contract.NumberOfUsers, contract.CloudOrOnPrem,
                     contract.SystemAccess, contract.Permissions, contract.Integrations,
-                    contract.AccessesPersonalData, contract.AccessesPHI, contract.UsesAI)
+                    contract.AccessesPersonalData, contract.AccessesPHI, contract.AccessesClientMatter, contract.UsesAI)
                 : null,
             customFieldValues,
             CapabilitiesForCaller());
@@ -474,6 +474,7 @@ public class ContractService : IContractService
         contract.Integrations = null;
         contract.AccessesPersonalData = null;
         contract.AccessesPHI = null;
+        contract.AccessesClientMatter = null;
         contract.UsesAI = null;
 
         switch (contract.Category)
@@ -500,6 +501,7 @@ public class ContractService : IContractService
                 contract.Integrations = itFields.Integrations;
                 contract.AccessesPersonalData = itFields.AccessesPersonalData;
                 contract.AccessesPHI = itFields.AccessesPHI;
+                contract.AccessesClientMatter = itFields.AccessesClientMatter;
                 contract.UsesAI = itFields.UsesAI;
                 break;
         }
