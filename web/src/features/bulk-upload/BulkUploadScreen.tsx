@@ -5,6 +5,52 @@ import { api, apiJson } from '@/lib/apiClient';
 import type { BulkUploadPreviewDto, BulkUploadRowDto } from '@/types/api';
 import styles from './BulkUploadScreen.module.css';
 
+type BulkSourceId = 'spreadsheet' | 'spendconnect' | 'repository' | 'merger';
+
+interface BulkSource {
+  id: BulkSourceId;
+  label: string;
+  icon: string;
+  desc: string;
+  phase: string;
+  enabled: boolean;
+}
+
+const BULK_SOURCES: BulkSource[] = [
+  {
+    id: 'spreadsheet',
+    label: 'Procurement spreadsheet',
+    icon: 'file-xls',
+    desc: "Seed Phase 1 from Lisa's current tracking spreadsheet — in-process contracts that need to keep moving.",
+    phase: 'Phase 1 onboarding',
+    enabled: true,
+  },
+  {
+    id: 'spendconnect',
+    label: 'SpendConnect export',
+    icon: 'database',
+    desc: 'Import contract records from a SpendConnect CSV export.',
+    phase: 'Phase 1',
+    enabled: true,
+  },
+  {
+    id: 'repository',
+    label: 'Signed contracts repository',
+    icon: 'archive',
+    desc: 'Backfill historical signed contracts. Read-only after import — for searchable history.',
+    phase: 'Phase 2 (placeholder)',
+    enabled: false,
+  },
+  {
+    id: 'merger',
+    label: 'Merger / acquired-firm import',
+    icon: 'arrows-merge',
+    desc: 'One-time bulk import of contracts from an acquired firm or practice group.',
+    phase: 'Phase 2 (placeholder)',
+    enabled: false,
+  },
+];
+
 interface CommitResponse {
   importedCount: number;
   skippedCount: number;
@@ -22,6 +68,7 @@ const COLUMNS: { key: EditableField; label: string }[] = [
 ];
 
 export function BulkUploadScreen() {
+  const [source, setSource] = useState<BulkSourceId | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [rows, setRows] = useState<BulkUploadRowDto[]>([]);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
@@ -91,14 +138,36 @@ export function BulkUploadScreen() {
     });
   };
 
+  if (!source) {
+    return <SourcePicker onPick={setSource} />;
+  }
+  const sourceMeta = BULK_SOURCES.find((s) => s.id === source);
+  if (sourceMeta && !sourceMeta.enabled) {
+    return <Phase2Placeholder source={sourceMeta} onBack={() => setSource(null)} />;
+  }
+
   return (
     <div className={styles.page}>
       <header>
         <h1 className={styles.title}>Bulk upload</h1>
         <p className={styles.subtitle}>
-          Upload the legacy SpendConnect spreadsheet to seed the system. Click any cell to fix it
-          inline, then commit the rows that resolve.
+          {sourceMeta?.label ?? 'Source'}. Upload the spreadsheet to seed the system. Click any cell
+          to fix it inline, then commit the rows that resolve.
         </p>
+        <button
+          type="button"
+          onClick={() => setSource(null)}
+          style={{
+            background: 'none',
+            border: 0,
+            padding: 0,
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            marginTop: 'var(--space-2)',
+          }}
+        >
+          <i className="ph ph-arrow-left" aria-hidden="true" /> Pick a different source
+        </button>
       </header>
 
       <section className={styles.section}>
@@ -354,4 +423,108 @@ function findErrorFor(errors: string[], field: EditableField): string | null {
     if (keywords.some((keyword) => lower.includes(keyword))) return message;
   }
   return null;
+}
+
+function SourcePicker({ onPick }: { onPick: (id: BulkSourceId) => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      <header>
+        <h1 style={{ fontFamily: 'var(--font-mix)', fontSize: 32, margin: 0 }}>Bulk upload</h1>
+        <p style={{ color: 'var(--text-secondary)', marginTop: 'var(--space-2)' }}>
+          Four import paths. Phase 1 priority is the procurement spreadsheet — that&apos;s how the
+          tool gets seeded with in-process contracts.
+        </p>
+      </header>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+          gap: 'var(--space-4)',
+        }}
+      >
+        {BULK_SOURCES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onPick(s.id)}
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius)',
+              padding: 'var(--space-5)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              font: 'inherit',
+              color: 'inherit',
+              opacity: s.enabled ? 1 : 0.7,
+            }}
+          >
+            <i
+              className={`ph ph-${s.icon}`}
+              aria-hidden="true"
+              style={{ fontSize: 32, display: 'block', marginBottom: 'var(--space-3)' }}
+            />
+            <h3
+              style={{
+                fontFamily: 'var(--font-mix)',
+                fontSize: 22,
+                margin: 0,
+                marginBottom: 'var(--space-2)',
+              }}
+            >
+              {s.label}
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>{s.desc}</p>
+            <p
+              style={{
+                marginTop: 'var(--space-3)',
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-secondary)',
+                fontWeight: 600,
+              }}
+            >
+              {s.phase}
+            </p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Phase2Placeholder({ source, onBack }: { source: BulkSource; onBack: () => void }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          background: 'none',
+          border: 0,
+          padding: 0,
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <i className="ph ph-arrow-left" aria-hidden="true" /> Pick a different source
+      </button>
+      <h1 style={{ fontFamily: 'var(--font-mix)', fontSize: 32, margin: 0 }}>{source.label}</h1>
+      <div
+        style={{
+          background: 'var(--color-pale-blue)',
+          borderLeft: '4px solid var(--color-blue)',
+          padding: 'var(--space-4)',
+          borderRadius: 'var(--radius)',
+          color: 'var(--color-navy)',
+          fontSize: 14,
+        }}
+      >
+        <strong>Phase 2.</strong> {source.desc} This import path is planned but not built in Phase 1
+        — the priority for Phase 1 is the procurement spreadsheet seed.
+      </div>
+    </div>
+  );
 }

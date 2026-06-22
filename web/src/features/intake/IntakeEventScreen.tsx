@@ -12,9 +12,9 @@ interface FormState {
   title: string;
   vendorId: number | null;
   totalCostUsd: string;
+  eventName: string;
   eventDate: string;
   venueLocation: string;
-  partOfLargerEvent: boolean;
   parentEventName: string;
   termStartDate: string;
   termEndDate: string;
@@ -25,9 +25,9 @@ const INITIAL_FORM: FormState = {
   title: '',
   vendorId: null,
   totalCostUsd: '',
+  eventName: '',
   eventDate: '',
   venueLocation: '',
-  partOfLargerEvent: false,
   parentEventName: '',
   termStartDate: '',
   termEndDate: '',
@@ -56,10 +56,10 @@ export function IntakeEventScreen() {
           category: 'Event',
           vendorId: input.vendorId,
           totalCostUsd: input.totalCostUsd ? Number(input.totalCostUsd) : null,
+          eventName: input.eventName || null,
           eventDate: input.eventDate || null,
           venueLocation: input.venueLocation || null,
-          partOfLargerEvent: input.partOfLargerEvent,
-          parentEventName: input.partOfLargerEvent ? input.parentEventName || null : null,
+          parentEventName: input.parentEventName || null,
           termStartDate: input.termStartDate || null,
           termEndDate: input.termEndDate || null,
           description: input.description || null,
@@ -126,6 +126,16 @@ export function IntakeEventScreen() {
             </ul>
           ) : null}
         </label>
+        <label className={styles.field}>
+          <span className={styles.label}>Event name</span>
+          <input
+            type="text"
+            value={form.eventName}
+            placeholder="e.g., 2026 Summer Welcome Dinner"
+            onChange={(event) => update('eventName', event.target.value)}
+            className={styles.input}
+          />
+        </label>
         <div className={styles.row}>
           <label className={styles.field}>
             <span className={styles.label}>Total cost (USD)</span>
@@ -149,33 +159,29 @@ export function IntakeEventScreen() {
           </label>
         </div>
         <label className={styles.field}>
-          <span className={styles.label}>Venue / location</span>
+          <span className={styles.label}>Venue</span>
           <input
             type="text"
             value={form.venueLocation}
+            placeholder="Actual venue — may differ from the contracting vendor"
             onChange={(event) => update('venueLocation', event.target.value)}
             className={styles.input}
           />
         </label>
         <label className={styles.field}>
+          <span className={styles.label}>Parent conference / project</span>
           <input
-            type="checkbox"
-            checked={form.partOfLargerEvent}
-            onChange={(event) => update('partOfLargerEvent', event.target.checked)}
-          />{' '}
-          Part of a larger conference or symposium
+            type="text"
+            value={form.parentEventName}
+            placeholder="e.g., 2026 Summer Associates, HPE Miami, Partners Retreat"
+            onChange={(event) => update('parentEventName', event.target.value)}
+            className={styles.input}
+          />
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            Groups every contract tied to one larger event. If the parent is canceled, every related
+            contract can be found at once.
+          </span>
         </label>
-        {form.partOfLargerEvent ? (
-          <label className={styles.field}>
-            <span className={styles.label}>Parent event name</span>
-            <input
-              type="text"
-              value={form.parentEventName}
-              onChange={(event) => update('parentEventName', event.target.value)}
-              className={styles.input}
-            />
-          </label>
-        ) : null}
         <label className={styles.field}>
           <span className={styles.label}>Description (optional)</span>
           <textarea

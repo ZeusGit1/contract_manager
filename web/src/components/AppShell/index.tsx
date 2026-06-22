@@ -12,14 +12,21 @@ interface NavItem {
 }
 
 const NAV_PRIMARY: NavItem[] = [
-  { to: '/', label: 'Active contracts', icon: 'squares-four', roles: ['Procurement'] },
-  { to: '/my-submissions', label: 'My submissions', icon: 'list', roles: ['Requester'] },
+  { to: '/', label: 'My dashboard', icon: 'user-circle', roles: ['Procurement'] },
+  { to: '/master', label: 'Master view', icon: 'squares-four', roles: ['Procurement'] },
+  {
+    to: '/my-submissions',
+    label: 'My submissions',
+    icon: 'list-checks',
+    roles: ['Requester', 'Procurement'],
+  },
   { to: '/my-reviews', label: 'My reviews', icon: 'eye', roles: ['AttorneyReviewer'] },
+  { to: '/reports', label: 'Reports', icon: 'chart-bar', roles: ['Procurement'] },
   { to: '/vendors', label: 'Vendors', icon: 'buildings', roles: ['Procurement'] },
 ];
 const NAV_CREATE: NavItem[] = [
   {
-    to: '/new-contract',
+    to: '/new-contract/category',
     label: 'New contract',
     icon: 'plus-circle',
     roles: ['Requester', 'Procurement'],
@@ -27,9 +34,18 @@ const NAV_CREATE: NavItem[] = [
   { to: '/bulk-upload', label: 'Bulk upload', icon: 'upload-simple', roles: ['Procurement'] },
 ];
 const NAV_MORE: NavItem[] = [
-  { to: '/archive', label: 'Archive', icon: 'archive', roles: ['Procurement'] },
-  { to: '/renewals', label: 'Renewal report', icon: 'calendar-check', roles: ['Procurement'] },
-  { to: '/settings/reminders', label: 'Settings', icon: 'gear', roles: ['Procurement'] },
+  {
+    to: '/archive',
+    label: 'Completed / canceled',
+    icon: 'archive-box',
+    roles: ['Procurement'],
+  },
+  {
+    to: '/settings/categories',
+    label: 'Categories & fields',
+    icon: 'gear',
+    roles: ['Procurement'],
+  },
 ];
 
 interface AppShellProps {

@@ -53,7 +53,43 @@
   height: 8px;
   margin-top: 7px;
   border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-navy) 35%, transparent);
+}
+
+.dotInitial {
   background: var(--color-blue);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.startPill,
+.startPillIdle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-navy);
+}
+
+.startPill {
+  background: var(--color-pale-blue);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+}
+
+.startPillIdle {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--color-navy) 25%, transparent);
+  color: var(--color-navy);
+  opacity: 0.7;
 }
 
 .body {

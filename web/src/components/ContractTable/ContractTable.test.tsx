@@ -13,6 +13,7 @@ const ROW: ContractRowDto = {
   vendorName: 'Adobe Inc.',
   vendorId: 99,
   assignedReviewerName: 'Lisa Farkas',
+  assignedReviewerTeam: 'Procurement',
   assignedReviewerUserId: '11111111-1111-1111-1111-111111111111',
   totalCostUsd: 218000,
   termEndDate: '2027-07-31',
