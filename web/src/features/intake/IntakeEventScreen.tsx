@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
+import { useCurrentUser } from '@/features/auth/useCurrentUser';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
 import { RoutingPreview } from './RoutingPreview';
@@ -36,6 +37,7 @@ const INITIAL_FORM: FormState = {
 
 export function IntakeEventScreen() {
   const navigate = useNavigate();
+  const currentUser = useCurrentUser();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [vendorQuery, setVendorQuery] = useState('');
 
@@ -55,14 +57,17 @@ export function IntakeEventScreen() {
           title: input.title,
           category: 'Event',
           vendorId: input.vendorId,
+          requesterEmail: currentUser.data?.email ?? '',
           totalCostUsd: input.totalCostUsd ? Number(input.totalCostUsd) : null,
-          eventName: input.eventName || null,
-          eventDate: input.eventDate || null,
-          venueLocation: input.venueLocation || null,
-          parentEventName: input.parentEventName || null,
           termStartDate: input.termStartDate || null,
           termEndDate: input.termEndDate || null,
           description: input.description || null,
+          eventFields: {
+            eventName: input.eventName || null,
+            eventDate: input.eventDate || null,
+            venueLocation: input.venueLocation || null,
+            parentEventName: input.parentEventName || null,
+          },
         },
       }),
     onSuccess: (detail) => navigate(`/contracts/${detail.contractId}`),
@@ -202,7 +207,10 @@ export function IntakeEventScreen() {
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>
           Cancel
         </Button>
-        <Button type="submit" disabled={submit.isPending || form.vendorId === null}>
+        <Button
+          type="submit"
+          disabled={submit.isPending || form.vendorId === null || !currentUser.data?.email}
+        >
           Submit for review
         </Button>
       </footer>

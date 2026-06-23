@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
+import { useCurrentUser } from '@/features/auth/useCurrentUser';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
 import { RoutingPreview } from './RoutingPreview';
@@ -28,6 +29,7 @@ const INITIAL_FORM: FormState = {
 
 export function IntakeFacilitiesScreen() {
   const navigate = useNavigate();
+  const currentUser = useCurrentUser();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [vendorQuery, setVendorQuery] = useState('');
 
@@ -47,10 +49,14 @@ export function IntakeFacilitiesScreen() {
           title: input.title,
           category: 'Facilities',
           vendorId: input.vendorId,
+          requesterEmail: currentUser.data?.email ?? '',
           totalCostUsd: input.totalCostUsd ? Number(input.totalCostUsd) : null,
           termStartDate: input.termStartDate || null,
           termEndDate: input.termEndDate || null,
-          serviceDescription: input.serviceDescription || null,
+          facilitiesFields: {
+            building: null,
+            serviceDescription: input.serviceDescription || null,
+          },
         },
       }),
     onSuccess: (detail) => navigate(`/contracts/${detail.contractId}`),
@@ -164,7 +170,10 @@ export function IntakeFacilitiesScreen() {
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>
           Cancel
         </Button>
-        <Button type="submit" disabled={submit.isPending || form.vendorId === null}>
+        <Button
+          type="submit"
+          disabled={submit.isPending || form.vendorId === null || !currentUser.data?.email}
+        >
           Submit for review
         </Button>
       </footer>
