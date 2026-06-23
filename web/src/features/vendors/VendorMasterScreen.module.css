@@ -14,10 +14,38 @@
   color: var(--text-secondary);
   font-size: 14px;
 }
+.headRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.toolbar {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
 .search {
-  width: 100%;
-  min-width: 0;
+  flex: 1;
+  min-width: 220px;
   height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.filterLabel {
+  display: inline-flex;
+  align-items: center;
+}
+.filter {
+  height: var(--control-h);
+  min-width: 160px;
   padding: 0 var(--space-3);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
@@ -171,4 +199,54 @@
   color: var(--text-secondary);
   font-size: 13px;
   font-family: var(--font-mono);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.fieldOptional {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+.fieldInput {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.fieldHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.fieldError {
+  font-size: 12px;
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+}
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-3);
+}
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }

@@ -1,5 +1,6 @@
 import { PHASE1_CONTRACTS } from '@/lib/phase1Data';
 import { ME, PROCUREMENT_OWNERS, type Phase1Contract } from '@/types/phase1';
+import { formatFullDate } from '@/lib/formatters';
 
 import styles from './Phase1.module.css';
 
@@ -30,25 +31,17 @@ export function ReportsScreen() {
   const maxOwner = Math.max(1, ...byOwner.map((b) => b.active));
   const maxCat = Math.max(1, ...Object.values(activeByCat));
 
+  const now = new Date();
+  const yearToDateLabel = `YTD · Jan 1 – ${formatFullDate(now.toISOString())} (${now.getFullYear()})`;
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
         <div>
           <h1 className={styles.title}>Reports</h1>
-          <p className={styles.subtitle}>
-            Snapshot for Lisa&rsquo;s annual review, leadership rollups (Tenvir, Michael Shea), and
-            rush-request pushback. Synthetic data.
-          </p>
+          <p className={styles.subtitle}>{yearToDateLabel}</p>
         </div>
       </header>
-
-      <div className={styles.banner}>
-        <i className="ph ph-info" aria-hidden="true" />
-        <span>
-          Phase 1 reports cover counts and current load. Time-to-close and SLA dashboards come in
-          Phase 2.
-        </span>
-      </div>
 
       <div
         style={{

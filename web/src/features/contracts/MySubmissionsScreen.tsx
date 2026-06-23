@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { PHASE1_CONTRACTS, nextActionDue, daysFromTodayLocal } from '@/lib/phase1Data';
@@ -12,11 +13,31 @@ const CATEGORY_ICON: Record<string, string> = {
   IT: 'desktop',
 };
 
+type SortKey = 'title' | 'category' | 'requester' | 'overall' | 'nextDue' | 'value';
+type SortDir = 'asc' | 'desc';
+
+const HEADERS: { key: SortKey; label: string }[] = [
+  { key: 'title', label: 'Contract' },
+  { key: 'category', label: 'Category' },
+  { key: 'requester', label: 'Requester' },
+  { key: 'overall', label: 'Overall' },
+  { key: 'nextDue', label: 'Next due' },
+  { key: 'value', label: 'Value' },
+];
+
 export function MySubmissionsScreen() {
   const navigate = useNavigate();
-  const mine: Phase1Contract[] = PHASE1_CONTRACTS.filter(
-    (c) => c.requester === ME.name || c.owner === ME.name,
-  );
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'nextDue', dir: 'asc' });
+
+  const rows = useMemo(() => {
+    const base = PHASE1_CONTRACTS.filter((c) => c.requester === ME.name || c.owner === ME.name);
+    return sortRows(base, sort);
+  }, [sort]);
+
+  const onSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
+    );
 
   return (
     <div className={styles.page}>
@@ -36,21 +57,23 @@ export function MySubmissionsScreen() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Contract</th>
-              <th>Category</th>
-              <th>Requester</th>
-              <th>Overall</th>
-              <th>Next due</th>
-              <th>Value</th>
+              {HEADERS.map((h) => (
+                <th key={h.key} aria-sort={sortAriaFor(sort, h.key)}>
+                  <button type="button" className={styles.sortBtn} onClick={() => onSort(h.key)}>
+                    <span>{h.label}</span>
+                    <i className={`ph ph-${sortIconFor(sort, h.key)}`} aria-hidden="true" />
+                  </button>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {mine.length === 0 ? (
+            {rows.length === 0 ? (
               <tr className={styles.emptyRow}>
-                <td colSpan={6}>You haven&rsquo;t submitted any contracts yet.</td>
+                <td colSpan={HEADERS.length}>You haven&rsquo;t submitted any contracts yet.</td>
               </tr>
             ) : (
-              mine.map((c) => {
+              rows.map((c) => {
                 const next = nextActionDue(c);
                 const days = daysFromTodayLocal(next);
                 const overdue = days != null && days < 0;
@@ -102,4 +125,56 @@ export function MySubmissionsScreen() {
       </div>
     </div>
   );
+}
+
+function sortRows(rows: Phase1Contract[], sort: { key: SortKey; dir: SortDir }): Phase1Contract[] {
+  const dir = sort.dir === 'asc' ? 1 : -1;
+  const out = rows.slice();
+  out.sort((a, b) => {
+    let av: string | number = '';
+    let bv: string | number = '';
+    switch (sort.key) {
+      case 'title':
+        av = a.title.toLowerCase();
+        bv = b.title.toLowerCase();
+        break;
+      case 'category':
+        av = a.category;
+        bv = b.category;
+        break;
+      case 'requester':
+        av = a.requester.toLowerCase();
+        bv = b.requester.toLowerCase();
+        break;
+      case 'overall':
+        av = a.overallStatus;
+        bv = b.overallStatus;
+        break;
+      case 'nextDue':
+        av = nextActionDue(a) ?? '9999-12-31';
+        bv = nextActionDue(b) ?? '9999-12-31';
+        break;
+      case 'value':
+        av = a.value;
+        bv = b.value;
+        break;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+  return out;
+}
+
+function sortIconFor(sort: { key: SortKey; dir: SortDir }, key: SortKey): string {
+  if (sort.key !== key) return 'caret-up-down';
+  return sort.dir === 'asc' ? 'caret-up' : 'caret-down';
+}
+
+function sortAriaFor(
+  sort: { key: SortKey; dir: SortDir },
+  key: SortKey,
+): 'ascending' | 'descending' | 'none' {
+  if (sort.key !== key) return 'none';
+  return sort.dir === 'asc' ? 'ascending' : 'descending';
 }

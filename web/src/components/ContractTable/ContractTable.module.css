@@ -26,6 +26,25 @@
 .numeric {
   text-align: right;
 }
+.sortBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.sortBtn:hover {
+  color: var(--accent-interactive);
+}
+.numeric .sortBtn {
+  flex-direction: row-reverse;
+}
 .table td {
   padding: var(--space-3);
   border-bottom: 1px solid var(--border-light);
