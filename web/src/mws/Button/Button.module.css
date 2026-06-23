@@ -30,10 +30,17 @@
   min-width: 0;
 }
 
+/* Light theme: white text on blue accent. Dark theme: navy text on teal accent.
+   Per design rule: on --accent-interactive fills, the foreground is
+   white-in-light / navy-in-dark — never the reverse. */
 .primary {
   background: var(--accent-interactive);
-  color: var(--color-navy);
+  color: var(--color-white);
   border: 1px solid var(--accent-interactive);
+}
+
+[data-theme='dark'] .primary {
+  color: var(--color-navy);
 }
 
 .primary:hover:not(:disabled) {

@@ -51,6 +51,13 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
 
   const tile = (params.get('tile') as TileId) || 'all';
   const query = params.get('q') || '';
+  const submittedNumber = params.get('submitted');
+
+  const dismissSubmitted = () => {
+    const next = new URLSearchParams(params);
+    next.delete('submitted');
+    setParams(next, { replace: true });
+  };
 
   const base = useMemo<Phase1Contract[]>(() => {
     const rows = activeContracts();
@@ -143,6 +150,25 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
           </button>
         </div>
       </header>
+
+      {submittedNumber ? (
+        <div className={`${styles.banner} ${styles.bannerSuccess}`} role="status">
+          <i className="ph ph-check-circle" aria-hidden="true" />
+          <span>
+            <strong>Contract submitted.</strong> {submittedNumber} was created and routed for
+            review. It won&apos;t appear in this prototype&apos;s synthetic data — open the API or
+            backend to confirm.
+          </span>
+          <button
+            type="button"
+            className={styles.bannerDismiss}
+            onClick={dismissSubmitted}
+            aria-label="Dismiss"
+          >
+            <i className="ph ph-x" aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
 
       <div className={styles.banner}>
         <i className="ph ph-info" aria-hidden="true" />

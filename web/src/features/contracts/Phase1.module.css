@@ -49,6 +49,27 @@
   font-size: 18px;
 }
 
+.bannerSuccess {
+  background: var(--color-pale-success);
+  border-left-color: var(--color-success);
+}
+
+.bannerDismiss {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--color-navy);
+  cursor: pointer;
+  padding: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+}
+
+.bannerDismiss:hover {
+  color: var(--accent-interactive);
+}
+
 .viewToggle {
   display: inline-flex;
   border: 1px solid var(--border-light);
