@@ -51,3 +51,6 @@ yarn-error.log*
 
 # Review cache — produced per-run, not committed
 artifacts/docs/dev/reviews/.last-clean-run.json
+
+# Demo launcher logs (demo-start.cmd / demo-start.ps1)
+.demo-logs/
