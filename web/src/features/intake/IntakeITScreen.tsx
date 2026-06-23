@@ -77,7 +77,9 @@ export function IntakeITScreen() {
         method: 'POST',
         body: buildCreateBody(input, currentUser.data?.email ?? ''),
       }),
-    onSuccess: (detail) => navigate(`/contracts/${detail.contractId}`),
+    // Phase 1 prototype: dashboard reads synthetic data, so the API-issued
+    // contractId won't match. Land on the dashboard with a success banner.
+    onSuccess: (detail) => navigate(`/?submitted=${encodeURIComponent(detail.contractNumber)}`),
   });
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
