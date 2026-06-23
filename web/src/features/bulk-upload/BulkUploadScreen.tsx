@@ -74,6 +74,7 @@ export function BulkUploadScreen() {
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [draft, setDraft] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   const previewMutation = useMutation<BulkUploadPreviewDto, Error, File>({
     mutationFn: async (file) => {
@@ -172,15 +173,56 @@ export function BulkUploadScreen() {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>1. Upload spreadsheet</h2>
-        <input
-          type="file"
-          ref={fileInput}
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
+        <div
+          className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsDragging(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!isDragging) setIsDragging(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.currentTarget === event.target) setIsDragging(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsDragging(false);
+            const file = event.dataTransfer.files?.[0];
             if (file) previewMutation.mutate(file);
           }}
-        />
+          onClick={() => fileInput.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              fileInput.current?.click();
+            }
+          }}
+        >
+          <i className="ph ph-cloud-arrow-up" aria-hidden="true" />
+          <span className={styles.dropZoneTitle}>
+            {isDragging ? 'Drop the spreadsheet to upload' : 'Drag a spreadsheet here'}
+          </span>
+          <span className={styles.dropZoneHint}>or click to browse · .xlsx files only</span>
+          <input
+            type="file"
+            ref={fileInput}
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            style={{ display: 'none' }}
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) previewMutation.mutate(file);
+            }}
+          />
+        </div>
         {previewMutation.isPending ? <p>Parsing spreadsheet…</p> : null}
         {previewMutation.error ? (
           <p className={styles.error}>{previewMutation.error.message}</p>

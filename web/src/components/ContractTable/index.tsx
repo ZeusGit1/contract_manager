@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/mws/Badge';
 import { formatShortDate, formatUsd } from '@/lib/formatters';
@@ -5,18 +6,20 @@ import { statusInfo } from '@/lib/statusMap';
 import type { ContractRowDto } from '@/types/api';
 import styles from './ContractTable.module.css';
 
+type ColumnKey =
+  | 'flag'
+  | 'contract'
+  | 'vendor'
+  | 'category'
+  | 'status'
+  | 'reviewer'
+  | 'value'
+  | 'expires'
+  | 'lastAction'
+  | 'nextDue';
+
 interface Column {
-  key:
-    | 'flag'
-    | 'contract'
-    | 'vendor'
-    | 'category'
-    | 'status'
-    | 'reviewer'
-    | 'value'
-    | 'expires'
-    | 'lastAction'
-    | 'nextDue';
+  key: ColumnKey;
   label: string;
   numeric?: boolean;
 }
@@ -32,6 +35,20 @@ const DEFAULT_COLUMNS: Column[] = [
   { key: 'expires', label: 'Expires' },
   { key: 'nextDue', label: 'Next due' },
 ];
+
+const SORTABLE: ReadonlySet<ColumnKey> = new Set([
+  'contract',
+  'vendor',
+  'category',
+  'status',
+  'reviewer',
+  'value',
+  'expires',
+  'lastAction',
+  'nextDue',
+]);
+
+type SortDir = 'asc' | 'desc';
 
 interface ContractTableProps {
   rows: ContractRowDto[];
@@ -49,30 +66,65 @@ export function ContractTable({
   columns = DEFAULT_COLUMNS,
 }: ContractTableProps) {
   const navigate = useNavigate();
+  const [sort, setSort] = useState<{ key: ColumnKey; dir: SortDir } | null>(null);
+
+  const sortedRows = useMemo(() => sortRows(rows, sort), [rows, sort]);
+
+  const onSort = (key: ColumnKey) => {
+    if (!SORTABLE.has(key)) return;
+    setSort((prev) =>
+      prev && prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' },
+    );
+  };
+
   return (
     <div className={styles.tableShell}>
       <table className={styles.table}>
         <thead>
           <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                className={
-                  column.numeric
-                    ? styles.numeric
-                    : column.key === 'flag'
-                      ? styles.flagCell
-                      : undefined
-                }
-              >
-                {column.key === 'flag' ? (
-                  <span className="visually-hidden">Attention indicator</span>
-                ) : (
-                  column.label
-                )}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const sortable = SORTABLE.has(column.key);
+              const active = sort?.key === column.key;
+              const ariaSort: 'ascending' | 'descending' | 'none' = active
+                ? sort.dir === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : 'none';
+              return (
+                <th
+                  key={column.key}
+                  scope="col"
+                  aria-sort={sortable ? ariaSort : undefined}
+                  className={
+                    column.numeric
+                      ? styles.numeric
+                      : column.key === 'flag'
+                        ? styles.flagCell
+                        : undefined
+                  }
+                >
+                  {column.key === 'flag' ? (
+                    <span className="visually-hidden">Attention indicator</span>
+                  ) : sortable ? (
+                    <button
+                      type="button"
+                      className={styles.sortBtn}
+                      onClick={() => onSort(column.key)}
+                    >
+                      <span>{column.label}</span>
+                      <i
+                        className={`ph ph-${active ? (sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down'}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  ) : (
+                    column.label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -88,14 +140,14 @@ export function ContractTable({
                 Couldn&apos;t load contracts. Refresh to try again.
               </td>
             </tr>
-          ) : rows.length === 0 ? (
+          ) : sortedRows.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className={styles.emptyRow}>
                 {emptyMessage}
               </td>
             </tr>
           ) : (
-            rows.map((row) => {
+            sortedRows.map((row) => {
               const stage = statusInfo(row.status);
               return (
                 <tr
@@ -125,6 +177,57 @@ export function ContractTable({
       </table>
     </div>
   );
+}
+
+function sortRows(
+  rows: ContractRowDto[],
+  sort: { key: ColumnKey; dir: SortDir } | null,
+): ContractRowDto[] {
+  if (!sort) return rows;
+  const out = rows.slice();
+  const dir = sort.dir === 'asc' ? 1 : -1;
+  out.sort((a, b) => compare(a, b, sort.key) * dir);
+  return out;
+}
+
+function compare(a: ContractRowDto, b: ContractRowDto, key: ColumnKey): number {
+  switch (key) {
+    case 'contract':
+      return a.title.localeCompare(b.title);
+    case 'vendor':
+      return a.vendorName.localeCompare(b.vendorName);
+    case 'category':
+      return a.category.localeCompare(b.category);
+    case 'status':
+      return a.status.localeCompare(b.status);
+    case 'reviewer':
+      return (a.assignedReviewerName ?? '').localeCompare(b.assignedReviewerName ?? '');
+    case 'value':
+      return compareNumbers(a.totalCostUsd, b.totalCostUsd);
+    case 'expires':
+      return compareDates(a.termEndDate, b.termEndDate);
+    case 'lastAction':
+      return compareDates(a.lastActionAt, b.lastActionAt);
+    case 'nextDue':
+      return compareDates(a.nextActionDueAt, b.nextActionDueAt);
+    default:
+      return 0;
+  }
+}
+
+function compareDates(left: string | null, right: string | null): number {
+  // Nulls sort to the end on ascending.
+  if (left === right) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return left.localeCompare(right);
+}
+
+function compareNumbers(left: number | null, right: number | null): number {
+  if (left === right) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return left - right;
 }
 
 function renderCell(

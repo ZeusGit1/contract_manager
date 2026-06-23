@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { findContract, daysFromTodayLocal } from '@/lib/phase1Data';
@@ -7,7 +7,6 @@ import {
   PROCUREMENT_OWNERS,
   isLaneOpen,
   laneDef,
-  ownerByName,
   requesterEmailFrom,
   type ContractLane,
   type LaneId,
@@ -18,6 +17,31 @@ import { formatFullDate, formatShortDate, formatUsd } from '@/lib/formatters';
 import styles from './Phase1.module.css';
 
 type TabId = 'details' | 'documents' | 'comments' | 'notes' | 'activity';
+
+interface DocItem {
+  id: string;
+  name: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+interface CommentItem {
+  id: string;
+  author: string;
+  text: string;
+  when: string;
+  isInternal: boolean;
+}
+
+interface NoteItem {
+  id: string;
+  author: string;
+  text: string;
+  when: string;
+}
+
+const ME_NAME = 'Lisa Farkas';
 
 export function ContractDetailScreen() {
   const { contractId } = useParams();
@@ -40,6 +64,9 @@ export function ContractDetailScreen() {
   const [activity, setActivity] = useState<{ icon: string; text: string; when: string }[]>(() =>
     seedActivity(contract),
   );
+  const [docs, setDocs] = useState<DocItem[]>(() => seedDocs(contract));
+  const [comments, setComments] = useState<CommentItem[]>(() => seedComments(contract));
+  const [notes, setNotes] = useState<NoteItem[]>(() => seedNotes(contract));
 
   const openOverdue = useMemo(
     () =>
@@ -60,7 +87,6 @@ export function ContractDetailScreen() {
     );
   }
 
-  const ownerObj = ownerByName(owner);
   const isClosed = overallStatus !== 'active';
   const overallLabel =
     overallStatus === 'completed'
@@ -248,6 +274,15 @@ export function ContractDetailScreen() {
             </div>
           </div>
 
+          <ApprovalsSection
+            lanes={lanes}
+            isClosed={isClosed}
+            onRecord={(idx) => {
+              setLanesExpanded(true);
+              setEditingLaneIdx(idx);
+            }}
+          />
+
           <Tabs current={tab} onChange={setTab} />
           <div
             style={{
@@ -258,7 +293,40 @@ export function ContractDetailScreen() {
               marginTop: 'var(--space-4)',
             }}
           >
-            <TabContent tab={tab} contract={contract} activity={activity} />
+            <TabContent
+              tab={tab}
+              contract={contract}
+              activity={activity}
+              docs={docs}
+              comments={comments}
+              notes={notes}
+              onAddDoc={(item) => {
+                setDocs((prev) => [item, ...prev]);
+                setActivity((a) => [
+                  { icon: 'paperclip', text: `Document attached: ${item.name}`, when: 'Just now' },
+                  ...a,
+                ]);
+              }}
+              onDeleteDoc={(id) => setDocs((prev) => prev.filter((doc) => doc.id !== id))}
+              onAddComment={(item) => {
+                setComments((prev) => [...prev, item]);
+                setActivity((a) => [
+                  {
+                    icon: 'chat-circle',
+                    text: `${item.author} commented${item.isInternal ? ' (internal)' : ''}`,
+                    when: 'Just now',
+                  },
+                  ...a,
+                ]);
+              }}
+              onAddNote={(item) => {
+                setNotes((prev) => [item, ...prev]);
+                setActivity((a) => [
+                  { icon: 'note-pencil', text: 'Note added', when: 'Just now' },
+                  ...a,
+                ]);
+              }}
+            />
           </div>
         </div>
 
@@ -306,13 +374,6 @@ export function ContractDetailScreen() {
           </RailCard>
           <RailCard title="Procurement owner">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {ownerObj ? (
-                <span
-                  className={`${styles.ownerDot} ${styles[`ownerDot${ownerObj.tone}`]}`}
-                  style={{ width: 14, height: 14, flexShrink: 0 }}
-                  aria-hidden="true"
-                />
-              ) : null}
               <label style={{ flex: 1, minWidth: 0 }}>
                 <span
                   style={{
@@ -365,6 +426,7 @@ export function ContractDetailScreen() {
             <Fact label="Requester" value={contract.requester} />
             <Fact label="Value" value={formatUsd(contract.value)} />
             <Fact label="Vendor" value={contract.vendor} />
+            <Fact label="Contract term" value={formatTerm(contract.startDate, contract.endDate)} />
             {contract.event ? (
               <Fact label="Parent event" value={contract.event.parentEvent || '—'} />
             ) : null}
@@ -772,6 +834,105 @@ function LaneRow({
   );
 }
 
+const APPROVAL_LANES: LaneId[] = ['legal', 'infosec', 'privacy', 'gco'];
+
+function ApprovalsSection({
+  lanes,
+  isClosed,
+  onRecord,
+}: {
+  lanes: ContractLane[];
+  isClosed: boolean;
+  onRecord: (idx: number) => void;
+}) {
+  const rows = APPROVAL_LANES.map((id) => {
+    const idx = lanes.findIndex((lane) => lane.id === id);
+    return idx >= 0 ? { lane: lanes[idx], idx } : null;
+  }).filter((row): row is { lane: ContractLane; idx: number } => row !== null);
+
+  if (rows.length === 0) return null;
+
+  const approvedCount = rows.filter(
+    ({ lane }) => lane.status === 'approved' || lane.status === 'complete',
+  ).length;
+
+  return (
+    <section
+      aria-label="Approvals"
+      style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-light)',
+        borderRadius: 'var(--radius)',
+        padding: 'var(--space-5)',
+        marginTop: 'var(--space-4)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 'var(--space-4)',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}
+      >
+        <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Approvals</p>
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+          {approvedCount} of {rows.length} recorded · risk-review outcomes from InfoSec, Privacy,
+          GCO, Legal
+        </span>
+      </div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
+        {rows.map(({ lane, idx }) => {
+          const def = laneDef(lane.id);
+          const recorded = lane.status === 'approved' || lane.status === 'complete';
+          return (
+            <li
+              key={lane.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(120px, 1fr) auto minmax(120px, 1fr) auto',
+                gap: 12,
+                alignItems: 'center',
+                padding: 'var(--space-3) var(--space-4)',
+                border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius)',
+                background: recorded
+                  ? 'color-mix(in srgb, var(--color-pale-success) 50%, transparent)'
+                  : 'var(--bg-page)',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                <i className={`ph ph-${def.icon}`} aria-hidden="true" /> {def.label}
+              </span>
+              <span className={`${styles.lanePill} ${laneStatusClass(lane.status)}`}>
+                <span className={styles.lanePill__dot} aria-hidden="true" />
+                {LANE_STATUS_LABEL[lane.status]}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                {recorded ? (
+                  <>
+                    Approved by {lane.owner ?? '—'} · {formatShortDate(lane.lastUpdated)}
+                  </>
+                ) : (
+                  'Awaiting recorded approval'
+                )}
+              </span>
+              {isClosed ? null : (
+                <button className="btn btn--secondary btn--sm" onClick={() => onRecord(idx)}>
+                  <i className="ph ph-pencil-simple" aria-hidden="true" />{' '}
+                  {recorded ? 'Update' : 'Record'}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function Tabs({ current, onChange }: { current: TabId; onChange: (id: TabId) => void }) {
   const tabs: { id: TabId; label: string }[] = [
     { id: 'details', label: 'Details' },
@@ -819,15 +980,31 @@ function Tabs({ current, onChange }: { current: TabId; onChange: (id: TabId) => 
   );
 }
 
+interface TabContentProps {
+  tab: TabId;
+  contract: Phase1Contract;
+  activity: { icon: string; text: string; when: string }[];
+  docs: DocItem[];
+  comments: CommentItem[];
+  notes: NoteItem[];
+  onAddDoc: (item: DocItem) => void;
+  onDeleteDoc: (id: string) => void;
+  onAddComment: (item: CommentItem) => void;
+  onAddNote: (item: NoteItem) => void;
+}
+
 function TabContent({
   tab,
   contract,
   activity,
-}: {
-  tab: TabId;
-  contract: Phase1Contract;
-  activity: { icon: string; text: string; when: string }[];
-}) {
+  docs,
+  comments,
+  notes,
+  onAddDoc,
+  onDeleteDoc,
+  onAddComment,
+  onAddNote,
+}: TabContentProps) {
   if (tab === 'details') {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
@@ -901,13 +1078,358 @@ function TabContent({
       </div>
     );
   }
+  if (tab === 'documents') {
+    return <DocumentsTab docs={docs} onAdd={onAddDoc} onDelete={onDeleteDoc} />;
+  }
+  if (tab === 'comments') {
+    return <CommentsTab comments={comments} onAdd={onAddComment} />;
+  }
+  if (tab === 'notes') {
+    return <NotesTab notes={notes} onAdd={onAddNote} />;
+  }
+  return null;
+}
+
+function DocumentsTab({
+  docs,
+  onAdd,
+  onDelete,
+}: {
+  docs: DocItem[];
+  onAdd: (item: DocItem) => void;
+  onDelete: (id: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      onAdd({
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+        uploadedBy: ME_NAME,
+        uploadedAt: new Date().toISOString(),
+      });
+    });
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
   return (
-    <p style={{ color: 'var(--text-secondary)' }}>
-      {tab === 'documents' && 'Documents tab — placeholder.'}
-      {tab === 'comments' && 'Comments tab — placeholder.'}
-      {tab === 'notes' && 'Notes tab — placeholder.'}
-    </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+          {docs.length} {docs.length === 1 ? 'document' : 'documents'} attached
+        </p>
+        <label className="btn btn--secondary" style={{ cursor: 'pointer' }}>
+          <i className="ph ph-upload-simple" aria-hidden="true" /> Upload document
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(event) => handleFiles(event.target.files)}
+          />
+        </label>
+      </div>
+      {docs.length === 0 ? (
+        <p
+          style={{
+            color: 'var(--text-secondary)',
+            border: '1px dashed var(--border-light)',
+            padding: 'var(--space-5)',
+            borderRadius: 'var(--radius)',
+            textAlign: 'center',
+            margin: 0,
+          }}
+        >
+          No documents attached yet. Upload the contract draft, signed copy, or any supporting
+          files.
+        </p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+          {docs.map((doc) => (
+            <li
+              key={doc.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+                gap: 12,
+                alignItems: 'center',
+                padding: 'var(--space-3) var(--space-4)',
+                border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius)',
+                background: 'var(--bg-page)',
+              }}
+            >
+              <i className="ph ph-file-text" aria-hidden="true" style={{ fontSize: 24 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, wordBreak: 'break-word' }}>
+                  {doc.name}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {formatBytes(doc.size)} · {doc.uploadedBy} · {formatShortDate(doc.uploadedAt)}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => onDelete(doc.id)}
+                aria-label={`Remove ${doc.name}`}
+              >
+                <i className="ph ph-trash" aria-hidden="true" /> Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
+}
+
+function CommentsTab({
+  comments,
+  onAdd,
+}: {
+  comments: CommentItem[];
+  onAdd: (item: CommentItem) => void;
+}) {
+  const [text, setText] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
+
+  const handleSubmit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAdd({
+      id: crypto.randomUUID(),
+      author: ME_NAME,
+      text: trimmed,
+      when: new Date().toISOString(),
+      isInternal,
+    });
+    setText('');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {comments.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            No comments yet. Start the conversation below.
+          </p>
+        ) : (
+          comments.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                padding: 'var(--space-3) var(--space-4)',
+                border: '1px solid var(--border-light)',
+                borderLeft: c.isInternal
+                  ? '3px solid var(--color-gold)'
+                  : '3px solid var(--accent-interactive)',
+                borderRadius: 'var(--radius)',
+                background: 'var(--bg-page)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                  marginBottom: 4,
+                  gap: 8,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <strong style={{ fontSize: 13 }}>{c.author}</strong>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {c.isInternal ? 'Internal · ' : ''}
+                  {formatShortDate(c.when)}
+                </span>
+              </div>
+              <div style={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {c.text}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          borderTop: '1px solid var(--border-light)',
+          paddingTop: 16,
+        }}
+      >
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Add a comment</span>
+          <textarea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="Comments are visible to the contract team."
+            rows={3}
+            style={{
+              padding: 8,
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius)',
+              font: 'inherit',
+              resize: 'vertical',
+            }}
+          />
+        </label>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isInternal}
+              onChange={(event) => setIsInternal(event.target.checked)}
+            />
+            Internal only (not shared outside procurement)
+          </label>
+          <button type="button" className="btn" onClick={handleSubmit} disabled={!text.trim()}>
+            <i className="ph ph-paper-plane-tilt" aria-hidden="true" /> Post comment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotesTab({ notes, onAdd }: { notes: NoteItem[]; onAdd: (item: NoteItem) => void }) {
+  const [text, setText] = useState('');
+
+  const handleSubmit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAdd({
+      id: crypto.randomUUID(),
+      author: ME_NAME,
+      text: trimmed,
+      when: new Date().toISOString(),
+    });
+    setText('');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+        Notes are private to procurement. They never appear on reminders or external messages.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {notes.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No notes yet.</p>
+        ) : (
+          notes.map((note) => (
+            <div
+              key={note.id}
+              style={{
+                padding: 'var(--space-3) var(--space-4)',
+                border: '1px solid var(--border-light)',
+                borderLeft: '3px solid var(--color-gold)',
+                borderRadius: 'var(--radius)',
+                background: 'var(--color-pale-gold)',
+                color: 'var(--color-navy)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 4,
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  fontSize: 12,
+                }}
+              >
+                <strong>{note.author}</strong>
+                <span>{formatShortDate(note.when)}</span>
+              </div>
+              <div style={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {note.text}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder="Procurement notes…"
+          rows={3}
+          style={{
+            padding: 8,
+            border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius)',
+            font: 'inherit',
+            resize: 'vertical',
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button type="button" className="btn" onClick={handleSubmit} disabled={!text.trim()}>
+            <i className="ph ph-plus" aria-hidden="true" /> Add note
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const exponent = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / Math.pow(1024, exponent);
+  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
+
+function seedDocs(contract: Phase1Contract | undefined): DocItem[] {
+  if (!contract) return [];
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: `${contract.num} - Vendor draft.pdf`,
+      size: 482133,
+      uploadedBy: contract.requester,
+      uploadedAt: contract.startDate ?? new Date().toISOString(),
+    },
+  ];
+}
+
+function seedComments(contract: Phase1Contract | undefined): CommentItem[] {
+  if (!contract) return [];
+  return [
+    {
+      id: crypto.randomUUID(),
+      author: contract.requester,
+      text: 'Submitted the latest draft from the vendor. Anything you need from me?',
+      when: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+      isInternal: false,
+    },
+  ];
+}
+
+function seedNotes(contract: Phase1Contract | undefined): NoteItem[] {
+  if (!contract) return [];
+  return [];
 }
 
 function RailCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -977,6 +1499,13 @@ function Def({ label, value, full }: { label: string; value: string; full?: bool
 function ynLabel(v: boolean | null | undefined): string {
   if (v == null) return 'Not specified';
   return v ? 'Yes' : 'No';
+}
+
+function formatTerm(start: string | null, end: string | null): string {
+  if (!start && !end) return '—';
+  if (start && end) return `${formatShortDate(start)} – ${formatShortDate(end)}`;
+  if (start) return `From ${formatFullDate(start)}`;
+  return `Through ${formatFullDate(end)}`;
 }
 
 function laneStatusClass(status: ContractLane['status']): string {

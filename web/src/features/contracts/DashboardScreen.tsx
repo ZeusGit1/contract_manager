@@ -10,15 +10,9 @@ import {
   needsAction,
   nextActionDue,
 } from '@/lib/phase1Data';
-import {
-  LANE_DEFS,
-  ME,
-  isLaneOpen,
-  ownerByName,
-  PROCUREMENT_OWNERS,
-  type Phase1Contract,
-} from '@/types/phase1';
+import { LANE_DEFS, ME, isLaneOpen, type Phase1Contract } from '@/types/phase1';
 import { formatShortDate } from '@/lib/formatters';
+import { downloadContractsCsv } from '@/lib/exportCsv';
 
 import styles from './Phase1.module.css';
 
@@ -128,6 +122,17 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
             current={view}
             onSwitch={(target) => navigate(target === 'mine' ? '/' : '/master')}
           />
+          <button
+            className="btn btn--secondary"
+            onClick={() => {
+              const filename = `contracts-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
+              downloadContractsCsv(filtered, filename);
+            }}
+            disabled={filtered.length === 0}
+          >
+            <i className="ph ph-download-simple" aria-hidden="true" />
+            Export
+          </button>
           <button className="btn btn--secondary" onClick={() => navigate('/bulk-upload')}>
             <i className="ph ph-upload-simple" aria-hidden="true" />
             Bulk upload
@@ -164,28 +169,6 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
             <span className={styles.tileLabel}>{t.label}</span>
           </button>
         ))}
-      </div>
-
-      <div className={styles.legend} aria-label="Procurement owner color key">
-        {PROCUREMENT_OWNERS.map((o) => (
-          <span key={o.name} className={styles.legendItem}>
-            <span
-              className={styles.legendSwatch}
-              style={{ background: `var(--owner-${o.tone})` }}
-              aria-hidden="true"
-            />
-            {o.name}
-            {o.isMe ? ' (you)' : ''}
-          </span>
-        ))}
-        <span className={styles.legendItem}>
-          <span
-            className={styles.legendSwatch}
-            style={{ background: 'color-mix(in srgb, var(--color-pale-orange) 60%, transparent)' }}
-            aria-hidden="true"
-          />
-          Overdue lane
-        </span>
       </div>
 
       <div className={styles.toolbar}>
@@ -294,15 +277,10 @@ function ContractTable({ rows, sort, onSort, onOpen }: ContractTableProps) {
 }
 
 function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (num: string) => void }) {
-  const owner = ownerByName(c.owner);
-  const ownerCls = owner ? styles[`owner${owner.tone}`] : '';
-  const overdue = isContractOverdue(c);
   const needs = needsAction(c);
   const closed = c.overallStatus !== 'active';
   const clsList = [
     styles.bodyRow,
-    ownerCls,
-    overdue ? styles.rowOverdue : '',
     needs ? styles.rowNeedsAction : '',
     closed ? styles.rowClosed : '',
   ]
@@ -328,17 +306,7 @@ function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (num: string) =
       </td>
       <td>{c.vendor}</td>
       <td>{c.requester}</td>
-      <td>
-        <span className={styles.cellStack}>
-          {owner ? (
-            <span
-              className={`${styles.ownerDot} ${styles[`ownerDot${owner.tone}`]}`}
-              aria-hidden="true"
-            />
-          ) : null}{' '}
-          {c.owner}
-        </span>
-      </td>
+      <td>{c.owner}</td>
       <td>
         <span className={styles.cat}>
           <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />

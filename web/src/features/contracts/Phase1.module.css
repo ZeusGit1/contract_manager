@@ -1,11 +1,4 @@
-/* Phase 1 — parallel review lanes, action-focused dashboard tiles, owner color cues. */
-
-:root {
-  --owner-1: var(--color-blue);
-  --owner-2: var(--color-magenta);
-  --owner-3: var(--color-gold);
-  --owner-4: var(--color-teal);
-}
+/* Phase 1 — parallel review lanes, action-focused dashboard tiles. */
 
 .page {
   display: flex;
@@ -136,6 +129,10 @@
   font-weight: 600;
 }
 
+/* Tile colors signal urgency only.
+   - Overdue, Action, and Due-this-week carry severity tints (red / orange / gold).
+   - All-contracts and the three Waiting-on-X routing tiles are neutral —
+     they're filters, not severity indicators. Colored borders only mean "act now". */
 .tileAction {
   border-left-color: var(--color-orange);
 }
@@ -153,47 +150,6 @@
 }
 .tileWeek .tileIcon {
   color: var(--color-gold);
-}
-.tileVendor {
-  border-left-color: var(--color-blue);
-}
-.tileVendor .tileIcon {
-  color: var(--color-blue);
-}
-.tileRequester {
-  border-left-color: var(--color-magenta);
-}
-.tileRequester .tileIcon {
-  color: var(--color-magenta);
-}
-.tileSignature {
-  border-left-color: var(--color-teal);
-}
-.tileSignature .tileIcon {
-  color: var(--color-teal);
-}
-.tileAll {
-  border-left-color: var(--text-secondary);
-}
-
-.legend {
-  display: flex;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.legendSwatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
 }
 
 .toolbar {
@@ -273,28 +229,10 @@
 
 .bodyRow {
   cursor: pointer;
-  border-left: 3px solid transparent;
 }
 
 .bodyRow:hover {
   background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
-}
-
-.owner1 {
-  border-left-color: var(--owner-1);
-}
-.owner2 {
-  border-left-color: var(--owner-2);
-}
-.owner3 {
-  border-left-color: var(--owner-3);
-}
-.owner4 {
-  border-left-color: var(--owner-4);
-}
-
-.rowOverdue {
-  background: color-mix(in srgb, var(--color-pale-orange) 25%, transparent);
 }
 
 .rowClosed {
@@ -330,33 +268,6 @@
   font-size: 11px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
-}
-
-.cellStack {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.ownerDot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-pill);
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.ownerDot1 {
-  background: var(--owner-1);
-}
-.ownerDot2 {
-  background: var(--owner-2);
-}
-.ownerDot3 {
-  background: var(--owner-3);
-}
-.ownerDot4 {
-  background: var(--owner-4);
 }
 
 .cat {
