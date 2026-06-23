@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
+import { useCurrentUser } from '@/features/auth/useCurrentUser';
 import { RoutingPreview } from './RoutingPreview';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ContractDetailDto, VendorSuggestionDto } from '@/types/api';
@@ -58,6 +59,7 @@ const INITIAL_FORM: FormState = {
 
 export function IntakeITScreen() {
   const navigate = useNavigate();
+  const currentUser = useCurrentUser();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [vendorQuery, setVendorQuery] = useState('');
 
@@ -73,7 +75,7 @@ export function IntakeITScreen() {
     mutationFn: (input) =>
       apiJson<ContractDetailDto>('/api/contracts', {
         method: 'POST',
-        body: buildCreateBody(input),
+        body: buildCreateBody(input, currentUser.data?.email ?? ''),
       }),
     onSuccess: (detail) => navigate(`/contracts/${detail.contractId}`),
   });
@@ -313,7 +315,10 @@ export function IntakeITScreen() {
         <Button variant="secondary" type="button" onClick={() => navigate(-1)}>
           Cancel
         </Button>
-        <Button type="submit" disabled={submit.isPending || form.vendorId === null}>
+        <Button
+          type="submit"
+          disabled={submit.isPending || form.vendorId === null || !currentUser.data?.email}
+        >
           Submit for review
         </Button>
       </footer>
@@ -362,28 +367,31 @@ function RiskToggle({
   );
 }
 
-function buildCreateBody(form: FormState): Record<string, unknown> {
+function buildCreateBody(form: FormState, requesterEmail: string): Record<string, unknown> {
   return {
     title: form.title,
     category: 'IT',
     vendorId: form.vendorId,
+    requesterEmail,
     totalCostUsd: form.totalCostUsd ? Number(form.totalCostUsd) : null,
     termStartDate: form.termStartDate || null,
     termEndDate: form.termEndDate || null,
     description: form.description || null,
-    itType: form.itType || null,
-    applicationName: form.applicationName || null,
-    applicationVersion: form.applicationVersion || null,
-    licensingType: form.licensingType || null,
-    numberOfUsers: form.numberOfUsers ? Number(form.numberOfUsers) : null,
-    cloudOrOnPrem: form.cloudOrOnPrem || null,
-    systemAccess: form.systemAccess || null,
-    permissions: form.permissions || null,
-    integrations: form.integrations || null,
-    accessesPersonalData: form.accessesPersonalData,
-    accessesPHI: form.accessesPHI,
-    accessesClientMatter: form.accessesClientMatter,
-    usesAI: form.usesAI,
+    itFields: {
+      itType: form.itType || null,
+      applicationName: form.applicationName || null,
+      applicationVersion: form.applicationVersion || null,
+      licensingType: form.licensingType || null,
+      numberOfUsers: form.numberOfUsers ? Number(form.numberOfUsers) : null,
+      cloudOrOnPrem: form.cloudOrOnPrem || null,
+      systemAccess: form.systemAccess || null,
+      permissions: form.permissions || null,
+      integrations: form.integrations || null,
+      accessesPersonalData: form.accessesPersonalData,
+      accessesPHI: form.accessesPHI,
+      accessesClientMatter: form.accessesClientMatter,
+      usesAI: form.usesAI,
+    },
   };
 }
 
