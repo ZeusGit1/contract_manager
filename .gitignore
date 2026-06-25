@@ -54,3 +54,13 @@ artifacts/docs/dev/reviews/.last-clean-run.json
 
 # Demo launcher logs (demo-start.cmd / demo-start.ps1)
 .demo-logs/
+
+# Dev-only auth bypass scaffolding — local demo only, MUST NOT ship to any
+# environment with real Entra wiring. These files short-circuit token
+# validation so the SPA + API run against LocalDB without a tenant. If they
+# land in dev/staging/prod they silently disable auth.
+api/src/ContractManager.Api/DevBypass/
+web/src/auth/devAuth.tsx
+
+# Word-doc artifacts generated from Markdown handoff docs
+artifacts/docs/dev/*.docx
