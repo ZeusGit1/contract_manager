@@ -64,3 +64,9 @@ web/src/auth/devAuth.tsx
 
 # Word-doc artifacts generated from Markdown handoff docs
 artifacts/docs/dev/*.docx
+
+# requirements-finalizer outputs — local to each analyst, regenerated on demand.
+# The baseline + change-log are tracked; the checklist (current + archived
+# iterations) is not — it's a per-user tickable artifact, not a shared record.
+requirements/requirements-checklist.docx
+requirements/archive/
