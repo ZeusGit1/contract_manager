@@ -1503,7 +1503,7 @@ function ynLabel(v: boolean | null | undefined): string {
 
 function formatTerm(start: string | null, end: string | null): string {
   if (!start && !end) return '—';
-  if (start && end) return `${formatShortDate(start)} – ${formatShortDate(end)}`;
+  if (start && end) return `${formatFullDate(start)} – ${formatFullDate(end)}`;
   if (start) return `From ${formatFullDate(start)}`;
   return `Through ${formatFullDate(end)}`;
 }
