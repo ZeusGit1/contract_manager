@@ -132,7 +132,9 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
           <button
             className="btn btn--secondary"
             onClick={() => {
-              const filename = `contracts-${view}-${new Date().toISOString().slice(0, 10)}.csv`;
+              const activeTile = TILES.find((t) => t.id === tile) ?? TILES[0];
+              const cardName = toTitleCase(activeTile.label);
+              const filename = `${cardName} ${new Date().toISOString().slice(0, 10)}.csv`;
               downloadContractsCsv(filtered, filename);
             }}
             disabled={filtered.length === 0}
@@ -478,4 +480,11 @@ function sortAriaFor(
 ): 'ascending' | 'descending' | 'none' {
   if (sort.key !== key) return 'none';
   return sort.dir === 'asc' ? 'ascending' : 'descending';
+}
+
+function toTitleCase(label: string): string {
+  return label
+    .split(' ')
+    .map((word) => (word.length === 0 ? word : word[0].toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ');
 }

@@ -76,3 +76,46 @@ public record BulkUploadCommitResult(
     IReadOnlyList<BulkCommitFailure> Failures);
 
 public record BulkCommitFailure(int Index, string? ContractNumber, string Message);
+
+/// <summary>Preview response shape consumed by the web client. Flattened from <see cref="BulkUploadPreviewDto"/>.</summary>
+public record BulkUploadPreviewWebDto(
+    int TotalRows,
+    int ValidRows,
+    int InvalidRows,
+    IReadOnlyList<BulkUploadRowWebDto> Rows);
+
+/// <summary>
+/// Per-row payload exchanged with the web client. Carries every field needed to commit the row
+/// back to the API — preview populates the rich fields (matched vendor IDs, owner IDs, dates),
+/// the web echoes them back on commit. ADR-011: server stateless between preview and commit.
+/// </summary>
+public record BulkUploadRowWebDto(
+    int RowNumber,
+    string? ContractNumber,
+    string? ContractTitle,
+    string? VendorName,
+    int? MatchedVendorId,
+    string? Category,
+    string? Priority,
+    Guid? ProcurementOwnerUserId,
+    string? RequesterName,
+    string? RequesterEmail,
+    decimal? TotalCost,
+    string? TermStartDate,
+    string? TermEndDate,
+    string? SubmittedDate,
+    string? LegacyStatus,
+    bool IsValid,
+    IReadOnlyList<string> Errors);
+
+public class BulkUploadCommitWebRequest
+{
+    [Required] public IReadOnlyList<BulkUploadRowWebDto> Rows { get; set; } = Array.Empty<BulkUploadRowWebDto>();
+}
+
+public record BulkUploadCommitWebResponse(
+    int ImportedCount,
+    int SkippedCount,
+    int FailedCount,
+    IReadOnlyList<int> CreatedContractIds,
+    IReadOnlyList<BulkCommitFailure> Failures);

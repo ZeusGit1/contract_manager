@@ -76,3 +76,37 @@ Surface area: prototype iteration (mock-data UI changes + rewritten requirements
 | 4 | API NuGet warning NU1608 (Serilog.Sinks.ApplicationInsights ↔ Microsoft.ApplicationInsights version constraint) | Medium | **Rejected** | Pre-existing on the integration branch. No `.cs` or `.csproj` changes in this fix branch's diff — the warning was already there. Resolve in next `/build` pass by downgrading Microsoft.ApplicationInsights to 2.x OR upgrading the Serilog sink. |
 
 **Rationale for blanket rejection:** this fix branch is a prototype iteration. The code paths flagged as High will not survive the next `/build` pass in their current form. Applying the fixes here would produce throwaway work; the right place to enforce the line-limit, inline-style, and test-coverage rules is on the post-`/build` codebase that talks to the real API. The pre-existing dependency warning is unrelated to this branch's changes.
+
+---
+
+# Architectural findings — `/review` 2026-06-30 (fix/export-and-bulk-upload-fixes)
+
+Surface area: export-filename fix + bulk-upload 415/shape fixes + term-date year display.
+
+## Findings
+
+### [1] Hardcoded `MaxUploadBytes = 10MB` — [Pre-Impl Always / Medium]
+
+**File:** `api/src/ContractManager.Api/Controllers/BulkUploadController.cs:21`
+
+**Rule:** `_core-requirements.md` — "Every limit/threshold/timeout/count comes from a rule file (none invented)."
+
+**Why it matters:** Invented constants drift and can't be tuned per-env without a redeploy.
+
+**Proposed fix:** Extract to `BulkUploadOptions` bound via `IOptions<T>` from `appsettings.json`.
+
+**Disposition:** **Deferred** — Medium, doesn't block CLEAN. Revisit in a follow-up.
+
+---
+
+### [2] `ParseSpreadsheet` + `ColumnMappers` in controller — [Code-Review API / Medium]
+
+**File:** `api/src/ContractManager.Api/Controllers/BulkUploadController.cs:88–112`
+
+**Rule:** `api-coding-standards.md` — "Controllers handle request/response only — no business logic."
+
+**Why it matters:** Spreadsheet parsing is closer to a service responsibility; harder to unit-test inline.
+
+**Proposed fix:** Extract to `IBulkUploadSpreadsheetParser` service, register in DI.
+
+**Disposition:** **Deferred** — Medium, doesn't block CLEAN. Revisit in a follow-up.

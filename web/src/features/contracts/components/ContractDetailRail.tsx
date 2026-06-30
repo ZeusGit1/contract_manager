@@ -33,8 +33,8 @@ export function ContractDetailRail({ contract }: ContractDetailRailProps) {
         <h2 className={styles.heading}>Key dates</h2>
         <dl className={styles.list}>
           <Row label="Submitted" value={formatShortDate(contract.submittedAt)} />
-          <Row label="Term start" value={formatShortDate(contract.termStartDate)} />
-          <Row label="Term end" value={formatShortDate(contract.termEndDate)} />
+          <Row label="Term start" value={formatFullDate(contract.termStartDate)} />
+          <Row label="Term end" value={formatFullDate(contract.termEndDate)} />
           <Row label="Next action due" value={formatShortDate(contract.nextActionDueAt)} />
           <Row label="Last update" value={formatFullDate(contract.lastActionAt)} />
         </dl>

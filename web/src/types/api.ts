@@ -188,12 +188,21 @@ export interface VendorSummaryDto {
 
 export interface BulkUploadRowDto {
   rowNumber: number;
+  contractNumber: string | null;
   contractTitle: string | null;
   vendorName: string | null;
+  matchedVendorId: number | null;
   category: string | null;
+  priority: string | null;
+  procurementOwnerUserId: string | null;
+  requesterName: string | null;
+  requesterEmail: string | null;
   totalCost: number | null;
   termStartDate: string | null;
   termEndDate: string | null;
+  submittedDate: string | null;
+  legacyStatus: string | null;
+  isValid: boolean;
   errors: string[];
 }
 
