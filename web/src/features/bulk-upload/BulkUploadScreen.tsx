@@ -218,8 +218,11 @@ export function BulkUploadScreen() {
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             style={{ display: 'none' }}
             onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
+              const input = event.currentTarget;
+              const file = input.files?.[0];
               if (file) previewMutation.mutate(file);
+              // Reset so re-selecting the same file after a fix or error re-fires onChange.
+              input.value = '';
             }}
           />
         </div>
