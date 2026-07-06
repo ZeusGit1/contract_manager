@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { Button } from '@/mws/Button';
+import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
 import {
   activeContracts,
   daysFromTodayLocal,
@@ -112,6 +114,14 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
       prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
     );
 
+  const hasActiveFilters = tile !== 'all' || query.trim() !== '';
+  const clearFilters = () => {
+    const next = new URLSearchParams(params);
+    next.delete('tile');
+    next.delete('q');
+    setParams(next);
+  };
+
   return (
     <div className={styles.page}>
       <header className={styles.head}>
@@ -129,8 +139,9 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
             current={view}
             onSwitch={(target) => navigate(target === 'mine' ? '/' : '/master')}
           />
-          <button
-            className="btn btn--secondary"
+          <Button
+            variant="secondary"
+            icon="download-simple"
             onClick={() => {
               const activeTile = TILES.find((t) => t.id === tile) ?? TILES[0];
               const cardName = toTitleCase(activeTile.label);
@@ -139,17 +150,14 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
             }}
             disabled={filtered.length === 0}
           >
-            <i className="ph ph-download-simple" aria-hidden="true" />
             Export
-          </button>
-          <button className="btn btn--secondary" onClick={() => navigate('/bulk-upload')}>
-            <i className="ph ph-upload-simple" aria-hidden="true" />
+          </Button>
+          <Button variant="secondary" icon="upload-simple" onClick={() => navigate('/bulk-upload')}>
             Bulk upload
-          </button>
-          <button className="btn" onClick={() => navigate('/new-contract/category')}>
-            <i className="ph ph-plus" aria-hidden="true" />
+          </Button>
+          <Button icon="plus" onClick={() => navigate('/new-contract/category')}>
             New contract
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -220,6 +228,7 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
         sort={sort}
         onSort={onSort}
         onOpen={(num) => navigate(`/contracts/${num}`)}
+        onClearFilters={hasActiveFilters ? clearFilters : undefined}
       />
     </div>
   );
@@ -261,9 +270,10 @@ interface ContractTableProps {
   sort: { key: SortKey; dir: SortDir };
   onSort: (key: SortKey) => void;
   onOpen: (num: string) => void;
+  onClearFilters?: () => void;
 }
 
-function ContractTable({ rows, sort, onSort, onOpen }: ContractTableProps) {
+function ContractTable({ rows, sort, onSort, onOpen, onClearFilters }: ContractTableProps) {
   const headers: { key: SortKey; label: string }[] = [
     { key: 'title', label: 'Contract' },
     { key: 'vendor', label: 'Vendor' },
@@ -273,34 +283,36 @@ function ContractTable({ rows, sort, onSort, onOpen }: ContractTableProps) {
     { key: 'priority', label: 'Priority' },
     { key: 'nextDue', label: 'Next due' },
   ];
+  const columnCount = headers.length + 2;
   return (
-    <div className={styles.tableShell}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {headers.map((h) => (
-              <th key={h.key} aria-sort={sortAriaFor(sort, h.key)}>
-                <button type="button" className={styles.sortBtn} onClick={() => onSort(h.key)}>
-                  <span>{h.label}</span>
-                  <i className={`ph ph-${sortIconFor(sort, h.key)}`} aria-hidden="true" />
-                </button>
-              </th>
-            ))}
-            <th>Overall</th>
-            <th>Active lanes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr className={styles.emptyRow}>
-              <td colSpan={9}>No contracts match this view.</td>
-            </tr>
-          ) : (
-            rows.map((c) => <ContractRow key={c.num} c={c} onOpen={onOpen} />)
-          )}
-        </tbody>
-      </table>
-    </div>
+    <TableShell minWidth={1080}>
+      <thead>
+        <tr>
+          {headers.map((h) => (
+            <SortHeader<SortKey>
+              key={h.key}
+              columnKey={h.key}
+              activeKey={sort.key}
+              dir={sort.dir}
+              onSort={onSort}
+            >
+              {h.label}
+            </SortHeader>
+          ))}
+          <th scope="col">Overall</th>
+          <th scope="col">Active lanes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <TableEmptyRow colSpan={columnCount} onClearFilters={onClearFilters}>
+            {onClearFilters ? 'No contracts match your filters.' : 'No contracts match this view.'}
+          </TableEmptyRow>
+        ) : (
+          rows.map((c) => <ContractRow key={c.num} c={c} onOpen={onOpen} />)
+        )}
+      </tbody>
+    </TableShell>
   );
 }
 
@@ -328,7 +340,13 @@ function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (num: string) =
     <tr className={clsList} onClick={onOpenStable}>
       <td>
         <div className={styles.contractName}>
-          <span>{c.title}</span>
+          <Link
+            to={`/contracts/${c.num}`}
+            onClick={(event) => event.stopPropagation()}
+            className={styles.contractLink}
+          >
+            {c.title}
+          </Link>
           <span className={styles.contractNumber}>{c.num}</span>
         </div>
       </td>
@@ -467,19 +485,6 @@ function sortRows(rows: Phase1Contract[], sort: { key: SortKey; dir: SortDir }):
     return 0;
   });
   return out;
-}
-
-function sortIconFor(sort: { key: SortKey; dir: SortDir }, key: SortKey): string {
-  if (sort.key !== key) return 'caret-up-down';
-  return sort.dir === 'asc' ? 'caret-up' : 'caret-down';
-}
-
-function sortAriaFor(
-  sort: { key: SortKey; dir: SortDir },
-  key: SortKey,
-): 'ascending' | 'descending' | 'none' {
-  if (sort.key !== key) return 'none';
-  return sort.dir === 'asc' ? 'ascending' : 'descending';
 }
 
 function toTitleCase(label: string): string {

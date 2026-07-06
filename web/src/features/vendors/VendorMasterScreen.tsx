@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/mws/Badge';
 import { Button } from '@/mws/Button';
+import { TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
 import { apiJson } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import type { PagedResult, VendorRowDto, VendorSummaryDto } from '@/types/api';
@@ -98,54 +99,60 @@ export function VendorMasterScreen() {
           </select>
         </label>
       </div>
-      <div className={styles.tableShell}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Primary contact</th>
-              <th className={styles.numeric}>Contracts</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendorsQuery.isLoading ? (
-              <tr>
-                <td colSpan={5} className={styles.emptyRow}>
-                  Loading vendors…
+      <TableShell minWidth={720}>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Primary contact</th>
+            <th scope="col" className={styles.numeric}>
+              Contracts
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {vendorsQuery.isLoading ? (
+            <TableSkeletonRows columnCount={5} />
+          ) : vendorsQuery.error ? (
+            <TableEmptyRow colSpan={5}>
+              Couldn&apos;t load vendors. Refresh to try again.
+            </TableEmptyRow>
+          ) : (vendorsQuery.data?.items ?? []).length === 0 ? (
+            <TableEmptyRow colSpan={5}>No vendors match your search.</TableEmptyRow>
+          ) : (
+            (vendorsQuery.data?.items ?? []).map((vendor) => (
+              <tr
+                key={vendor.vendorId}
+                className={styles.vendorRow}
+                onClick={() => setModalVendorId(vendor.vendorId)}
+              >
+                <td>
+                  <button
+                    type="button"
+                    className={styles.vendorNameButton}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setModalVendorId(vendor.vendorId);
+                    }}
+                    aria-haspopup="dialog"
+                  >
+                    {vendor.name}
+                  </button>
                 </td>
-              </tr>
-            ) : vendorsQuery.error ? (
-              <tr>
-                <td colSpan={5} className={styles.emptyRow}>
-                  Couldn&apos;t load vendors. Refresh to try again.
+                <td>{vendor.type}</td>
+                <td>
+                  <Badge status={STATUS_BADGE[vendor.preferredStatus]}>
+                    {vendor.preferredStatus}
+                  </Badge>
                 </td>
+                <td>{vendor.primaryContactName ?? '—'}</td>
+                <td className={styles.numeric}>{vendor.contractCount}</td>
               </tr>
-            ) : (vendorsQuery.data?.items ?? []).length === 0 ? (
-              <tr>
-                <td colSpan={5} className={styles.emptyRow}>
-                  No vendors match your search.
-                </td>
-              </tr>
-            ) : (
-              (vendorsQuery.data?.items ?? []).map((vendor) => (
-                <tr key={vendor.vendorId} onClick={() => setModalVendorId(vendor.vendorId)}>
-                  <td>{vendor.name}</td>
-                  <td>{vendor.type}</td>
-                  <td>
-                    <Badge status={STATUS_BADGE[vendor.preferredStatus]}>
-                      {vendor.preferredStatus}
-                    </Badge>
-                  </td>
-                  <td>{vendor.primaryContactName ?? '—'}</td>
-                  <td className={styles.numeric}>{vendor.contractCount}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </TableShell>
       {modalVendorId !== null ? (
         <VendorModal vendorId={modalVendorId} onClose={() => setModalVendorId(null)} />
       ) : null}

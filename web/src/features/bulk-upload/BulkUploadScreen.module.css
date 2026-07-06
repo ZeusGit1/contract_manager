@@ -139,10 +139,24 @@
   line-height: 1;
 }
 
+/* Shell — matches mws/Table primitive: pure-CSS scroll-shadow fades on horizontal overflow. */
 .tableShell {
   overflow-x: auto;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
+  background:
+    linear-gradient(to right, var(--bg-surface), transparent 40px) left center,
+    linear-gradient(to left, var(--bg-surface), transparent 40px) right center,
+    linear-gradient(to right, var(--scroll-shadow-inner), transparent) left center,
+    linear-gradient(to left, var(--scroll-shadow-inner), transparent) right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    20px 100%,
+    20px 100%;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--bg-surface);
 }
 
 .table {
@@ -152,19 +166,23 @@
 }
 
 .table thead {
-  background: var(--bg-page);
+  background: var(--bg-surface);
 }
 
 .table th {
   text-align: left;
   font-family: var(--font-sans);
   font-size: 12px;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
   padding: var(--space-3);
   border-bottom: 1px solid var(--border-light);
   font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-surface);
 }
 
 .table td {

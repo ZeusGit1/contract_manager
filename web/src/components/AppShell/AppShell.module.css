@@ -35,21 +35,29 @@
 }
 
 .nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.navList {
   list-style: none;
   padding: 0;
   margin: 0;
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
 .section {
-  margin-top: var(--space-4);
+  margin: var(--space-4) 0 0;
   font-family: var(--font-sans);
   font-size: 11px;
-  letter-spacing: 10%;
+  font-weight: 400;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.55);
   padding: var(--space-2) var(--space-3);
@@ -134,7 +142,7 @@
   font-size: 11px;
   color: rgba(255, 255, 255, 0.65);
   text-transform: uppercase;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
 }
 
 .scrim {
@@ -185,6 +193,26 @@
   justify-content: space-between;
   height: 56px;
   padding: 0 var(--space-4);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.pageTitle {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .topbarRight {

@@ -1,65 +1,23 @@
-.tableShell {
-  overflow-x: auto;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  background: var(--bg-surface);
-}
-.table {
-  width: 100%;
-  min-width: 920px;
-  border-collapse: collapse;
-}
-.table thead {
-  background: var(--bg-page);
-}
-.table th {
-  text-align: left;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 5%;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-  font-weight: 600;
-}
+/* Cell-level styling for ContractTable. Shell + thead + sort come from mws/Table. */
+
 .numeric {
   text-align: right;
 }
-.sortBtn {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.sortBtn:hover {
-  color: var(--accent-interactive);
-}
-.numeric .sortBtn {
-  flex-direction: row-reverse;
-}
-.table td {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--border-light);
-  font-size: 14px;
-  vertical-align: middle;
-}
+
 .bodyRow {
   cursor: pointer;
 }
+
 .bodyRow:hover {
-  background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
+  background: var(--row-hover);
 }
+
+/* Base td rhythm lives in mws/Table. Nothing to override here. */
+
 .flagCell {
   width: 24px;
 }
+
 .flagDot {
   display: inline-block;
   width: 8px;
@@ -67,30 +25,30 @@
   border-radius: var(--radius-pill);
   background: var(--color-orange);
 }
+
 .contractName {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
+
 .contractName a {
   color: var(--text-primary);
   font-weight: 500;
   text-decoration: none;
 }
+
+/* Hover: color change only — no underline. */
 .contractName a:hover {
   color: var(--accent-interactive);
-  text-decoration: underline;
 }
+
 .contractNumber {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
 }
+
 .muted {
   color: var(--text-secondary);
-}
-.emptyRow {
-  text-align: center;
-  color: var(--text-secondary);
-  padding: var(--space-6);
 }

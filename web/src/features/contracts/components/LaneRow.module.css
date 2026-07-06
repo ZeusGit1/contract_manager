@@ -1,0 +1,133 @@
+.row {
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-page);
+}
+
+.rowOverdue {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-pale-orange) 35%, transparent);
+}
+
+.rowActive {
+  border-left: 4px solid var(--color-orange);
+}
+
+.rowComplete {
+  opacity: 0.7;
+}
+
+.rowNa {
+  opacity: 0.55;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .editorGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field select,
+.field input,
+.field textarea {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  min-width: 0;
+}
+
+.field textarea {
+  height: auto;
+  padding: var(--space-3);
+  min-height: 80px;
+  resize: vertical;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.readGrid {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 180px 160px auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+@media (max-width: 1024px) {
+  .readGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.readCell {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.readCellValue {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.readActions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.warningIcon {
+  color: var(--color-error);
+}
+
+.noteBox {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border-left: 3px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-secondary);
+}

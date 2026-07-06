@@ -72,7 +72,7 @@
   text-align: left;
   font-family: var(--font-sans);
   font-size: 12px;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
   padding: var(--space-3);
@@ -87,11 +87,27 @@
   border-bottom: 1px solid var(--border-light);
   font-size: 14px;
 }
-.table tbody tr {
+.vendorRow {
   cursor: pointer;
 }
-.table tbody tr:hover {
-  background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
+.vendorRow:hover {
+  background: var(--row-hover);
+}
+
+.vendorNameButton {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Hover: color change only — no underline. */
+.vendorNameButton:hover {
+  color: var(--accent-interactive);
 }
 .emptyRow {
   text-align: center;
@@ -159,7 +175,7 @@
 }
 .modalFacts dt {
   font-size: 11px;
-  letter-spacing: 10%;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-secondary);
   margin: 0;

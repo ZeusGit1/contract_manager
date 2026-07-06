@@ -216,11 +216,24 @@
   color: var(--text-secondary);
 }
 
+/* Shell — matches mws/Table primitive: pure-CSS scroll-shadow fades on horizontal overflow. */
 .tableShell {
-  background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--bg-surface), transparent 40px) left center,
+    linear-gradient(to left, var(--bg-surface), transparent 40px) right center,
+    linear-gradient(to right, var(--scroll-shadow-inner), transparent) left center,
+    linear-gradient(to left, var(--scroll-shadow-inner), transparent) right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    20px 100%,
+    20px 100%;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--bg-surface);
 }
 
 .table {
@@ -229,31 +242,15 @@
   border-collapse: collapse;
 }
 
-.table th {
-  text-align: left;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  color: var(--text-secondary);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-surface);
-}
-
-.table td {
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border-light);
-  font-size: 14px;
-  vertical-align: top;
-}
+/* NOTE: base thead/td rhythm lives in mws/Table/Table.module.css.
+ * Row-specific overrides (needs-action bold, closed dimming) live in .bodyRow below. */
 
 .bodyRow {
   cursor: pointer;
 }
 
 .bodyRow:hover {
-  background: color-mix(in srgb, var(--color-pale-blue) 40%, transparent);
+  background: var(--row-hover);
 }
 
 .rowClosed {
@@ -283,6 +280,18 @@
 .contractName {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.contractLink {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Hover: color change only — no underline. Per style refresh. */
+.contractLink:hover {
+  color: var(--accent-interactive);
 }
 
 .contractNumber {
@@ -384,6 +393,7 @@
 .priority {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
   font-size: 11px;
@@ -393,9 +403,21 @@
   color: var(--color-navy);
 }
 
+/* Pale fills per notifications-and-feedback.md ("Default to pale fills, not saturated alert colors").
+ * Critical adds a small saturated dot for emphasis; the pill itself stays calm. */
 .priorityCritical {
+  background: var(--color-pale-orange);
+}
+
+.priorityCritical::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
   background: var(--color-error);
 }
+
 .priorityHigh {
   background: var(--color-pale-orange);
 }
