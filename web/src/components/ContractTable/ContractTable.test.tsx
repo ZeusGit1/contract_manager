@@ -24,16 +24,19 @@ const ROW: ContractRowDto = {
 };
 
 describe('ContractTable', () => {
-  it('ContractTable — loading state — shows the loading row', () => {
+  it('ContractTable — loading state — renders skeleton rows', () => {
     // Arrange + Act
-    const { getByText } = render(
+    const { container, queryByText } = render(
       <MemoryRouter>
         <ContractTable rows={[]} isLoading error={null} />
       </MemoryRouter>,
     );
 
-    // Assert
-    expect(getByText(/loading contracts/i)).toBeInTheDocument();
+    // Assert — TableSkeletonRows emits aria-hidden rows with .skelBar cells.
+    // Six skeleton rows is the primitive's default when rowCount is unspecified.
+    const skeletonRows = container.querySelectorAll('tbody tr[aria-hidden="true"]');
+    expect(skeletonRows.length).toBeGreaterThan(0);
+    expect(queryByText(/no contracts/i)).toBeNull();
   });
 
   it('ContractTable — empty rows + not loading — shows the empty message', () => {

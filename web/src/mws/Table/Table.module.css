@@ -1,0 +1,157 @@
+/* McDermott table primitive — sticky headers, accent sort icons, skeleton rows.
+   See data-visualization.md. */
+
+/* Shell — 1px border + 2px radius + horizontal scroll shell.
+ * Layered gradient stack yields pure-CSS scroll-shadow fades on the left/right edges
+ * when the table overflows (showcase 648–655). Local-attached surface masks hide the
+ * shadow when scrolled to that edge; scroll-attached shadow gradients appear otherwise. */
+.shell {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(to right, var(--bg-surface), transparent 40px) left center,
+    linear-gradient(to left, var(--bg-surface), transparent 40px) right center,
+    linear-gradient(to right, var(--scroll-shadow-inner), transparent) left center,
+    linear-gradient(to left, var(--scroll-shadow-inner), transparent) right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    20px 100%,
+    20px 100%;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--bg-surface);
+  min-width: 0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead th {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  /* --bg-surface so the header reads as a distinct band in both themes (showcase 610).
+   * In dark this is #1c1c66 — a shade lighter than --bg-page so the row still shows. */
+  background: var(--bg-surface);
+  white-space: nowrap;
+}
+
+/* Baseline body-cell rhythm — 16px vertical / 16px horizontal padding, 14px sans, 1.5 line-height,
+ * middle vertical-align. Matches the showcase 612 with a touch more vertical air for our
+ * multi-value cells (contract title + number, lane pill rows). Consumers can still override
+ * on their .bodyRow td rules for row-specific density (e.g. compact rows). */
+.table tbody td {
+  padding: var(--space-4);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  vertical-align: middle;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.numeric {
+  text-align: right;
+}
+
+.sortBtn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sortBtn:hover {
+  color: var(--accent-interactive);
+}
+
+/* Sort icon states (showcase 671–674):
+ * - inactive: opacity 0.3 (dim so active is unambiguous)
+ * - hover:    opacity 0.6
+ * - active:   opacity 1 + --accent-interactive color */
+.sortIcon {
+  opacity: 0.3;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.sortBtn:hover .sortIcon {
+  opacity: 0.6;
+}
+
+.sortIconActive {
+  opacity: 1;
+  color: var(--accent-interactive);
+}
+
+.emptyRow {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--space-6);
+}
+
+.emptyRow .clearFilters {
+  margin-left: var(--space-2);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--accent-interactive);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.emptyRow .clearFilters:hover {
+  color: var(--accent-interactive);
+  text-decoration: none;
+}
+
+/* Skeleton rows — matches column structure. Pulse between --skeleton-base and --skeleton-pulse. */
+.skelRow td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.skelBar {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius);
+  background: var(--skeleton-base);
+  animation: skel-pulse 1.4s var(--ease-standard) infinite alternate;
+}
+
+@keyframes skel-pulse {
+  from {
+    background: var(--skeleton-base);
+  }
+  to {
+    background: var(--skeleton-pulse);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skelBar {
+    animation: none;
+  }
+}

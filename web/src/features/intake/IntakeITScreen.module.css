@@ -114,7 +114,7 @@ textarea.input {
   border-radius: var(--radius);
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
 }
 
 .risk {

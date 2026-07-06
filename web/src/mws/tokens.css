@@ -80,6 +80,17 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 66, 0.06);
   --shadow-md: 0 4px 12px rgba(0, 0, 66, 0.1);
   --shadow-lg: 0 8px 24px rgba(0, 0, 66, 0.14);
+
+  /* Skeleton pulse (theme-aware). Per loading-empty-and-error-states.md. */
+  --skeleton-base: #ebebf2;
+  --skeleton-pulse: #dedee5;
+
+  /* Table row hover — neutral gray in light, subtle white in dark, per showcase 614–615.
+   * Reserve --color-pale-blue for the open/selected row state. */
+  --row-hover: #ebebf2;
+
+  /* Scroll-shadow fades for horizontally-overflowing table shells (showcase 648–655). */
+  --scroll-shadow-inner: rgba(0, 0, 66, 0.12);
 }
 
 [data-theme='dark'] {
@@ -94,6 +105,10 @@
   --border-button: #4d4da8;
   --focus-ring: var(--color-teal);
   --scrim: rgba(0, 0, 0, 0.6);
+  --skeleton-base: rgba(255, 255, 255, 0.06);
+  --skeleton-pulse: rgba(255, 255, 255, 0.12);
+  --row-hover: rgba(255, 255, 255, 0.04);
+  --scroll-shadow-inner: rgba(0, 0, 0, 0.7);
 }
 
 html {

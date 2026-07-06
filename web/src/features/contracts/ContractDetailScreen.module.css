@@ -31,7 +31,7 @@
   gap: var(--space-2);
   font-family: var(--font-sans);
   font-size: 13px;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
 }
@@ -63,79 +63,6 @@
 
 .vendorLink:hover {
   text-decoration: underline;
-}
-
-.workflow {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-}
-
-.workflowEyebrow {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  letter-spacing: 10%;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-3);
-}
-
-.stepper {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  gap: var(--space-3);
-  overflow-x: auto;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.stepCircle {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-pill);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border-light);
-  background: transparent;
-}
-
-.step.current .stepCircle {
-  background: var(--accent-interactive);
-  color: var(--color-navy);
-  border-color: var(--accent-interactive);
-}
-
-.step.done .stepCircle {
-  background: var(--accent-interactive);
-  color: var(--color-navy);
-  border-color: var(--accent-interactive);
-}
-
-.step.done .stepCircle i {
-  font-size: 16px;
-  line-height: 1;
-}
-
-.step.current .stepLabel,
-.step.done .stepLabel {
-  color: var(--text-primary);
-}
-
-.stepLabel {
-  white-space: nowrap;
 }
 
 .body {
@@ -224,7 +151,7 @@
 .defFull dt {
   font-family: var(--font-sans);
   font-size: 11px;
-  letter-spacing: 10%;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-secondary);
   margin: 0;
@@ -309,7 +236,7 @@
 .noteType {
   text-transform: uppercase;
   font-weight: 600;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
 }
 
 .timeline {

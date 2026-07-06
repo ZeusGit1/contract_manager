@@ -4,7 +4,7 @@
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-sans);
   font-size: 12px;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   border-radius: var(--radius-pill);
   white-space: nowrap;

@@ -27,7 +27,7 @@
 }
 .facts dt {
   font-size: 11px;
-  letter-spacing: 10%;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-secondary);
   margin: 0 0 var(--space-1);

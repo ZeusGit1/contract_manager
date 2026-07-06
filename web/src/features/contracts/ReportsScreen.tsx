@@ -1,6 +1,8 @@
 import { PHASE1_CONTRACTS } from '@/lib/phase1Data';
 import { ME, PROCUREMENT_OWNERS, type Phase1Contract } from '@/types/phase1';
 import { formatFullDate } from '@/lib/formatters';
+import { Card } from '@/mws/Card';
+import { Kpi } from '@/mws/Kpi';
 
 import styles from './Phase1.module.css';
 
@@ -68,12 +70,12 @@ export function ReportsScreen() {
           gap: 'var(--space-5)',
         }}
       >
-        <Card title="Active by category">
+        <Card eyebrow="Active by category">
           <Bar label="Event" value={activeByCat.Event} max={maxCat} />
           <Bar label="Facilities" value={activeByCat.Facilities} max={maxCat} />
           <Bar label="IT" value={activeByCat.IT} max={maxCat} />
         </Card>
-        <Card title="Active by procurement owner">
+        <Card eyebrow="Active by procurement owner">
           {byOwner.map((b) => (
             <Bar
               key={b.owner.name}
@@ -85,7 +87,7 @@ export function ReportsScreen() {
         </Card>
       </div>
 
-      <Card title="All-time totals by category">
+      <Card eyebrow="All-time totals by category">
         <div
           style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)' }}
         >
@@ -94,64 +96,6 @@ export function ReportsScreen() {
           <Total label="IT" value={allByCat.IT} />
         </div>
       </Card>
-    </div>
-  );
-}
-
-function Kpi({ label, value, sub }: { label: string; value: number; sub?: string }) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius)',
-        padding: 'var(--space-4)',
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-          color: 'var(--text-secondary)',
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontFamily: 'var(--font-mix)', fontSize: 36, lineHeight: 1.1, marginTop: 6 }}>
-        {value}
-      </div>
-      {sub ? (
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{sub}</div>
-      ) : null}
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-light)',
-        borderRadius: 'var(--radius)',
-        padding: 'var(--space-5)',
-      }}
-    >
-      <p
-        style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          color: 'var(--text-secondary)',
-          margin: '0 0 var(--space-3)',
-          fontWeight: 600,
-        }}
-      >
-        {title}
-      </p>
-      {children}
     </div>
   );
 }
@@ -184,7 +128,6 @@ function Bar({ label, value, max }: { label: string; value: number; max: number 
             height: '100%',
             width: `${pct}%`,
             background: 'var(--accent-interactive)',
-            borderRadius: 'var(--radius-pill)',
           }}
         />
       </div>

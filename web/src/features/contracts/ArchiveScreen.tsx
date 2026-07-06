@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
 import { PHASE1_CONTRACTS } from '@/lib/phase1Data';
 import type { Phase1Contract } from '@/types/phase1';
 import { formatUsd } from '@/lib/formatters';
@@ -51,55 +52,60 @@ export function ArchiveScreen() {
           </p>
         </div>
       </header>
-      <div className={styles.tableShell}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {HEADERS.map((h) => (
-                <th key={h.key} aria-sort={sortAriaFor(sort, h.key)}>
-                  <button type="button" className={styles.sortBtn} onClick={() => onSort(h.key)}>
-                    <span>{h.label}</span>
-                    <i className={`ph ph-${sortIconFor(sort, h.key)}`} aria-hidden="true" />
-                  </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr className={styles.emptyRow}>
-                <td colSpan={HEADERS.length}>No closed contracts yet.</td>
+      <TableShell minWidth={960}>
+        <thead>
+          <tr>
+            {HEADERS.map((h) => (
+              <SortHeader<SortKey>
+                key={h.key}
+                columnKey={h.key}
+                activeKey={sort.key}
+                dir={sort.dir}
+                onSort={onSort}
+              >
+                {h.label}
+              </SortHeader>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <TableEmptyRow colSpan={HEADERS.length}>No closed contracts yet.</TableEmptyRow>
+          ) : (
+            rows.map((c) => (
+              <tr
+                key={c.num}
+                className={`${styles.bodyRow} ${styles.rowClosed}`}
+                onClick={() => navigate(`/contracts/${c.num}`)}
+              >
+                <td>
+                  <div className={styles.contractName}>
+                    <Link
+                      to={`/contracts/${c.num}`}
+                      onClick={(event) => event.stopPropagation()}
+                      className={styles.contractLink}
+                    >
+                      {c.title}
+                    </Link>
+                    <span className={styles.contractNumber}>{c.num}</span>
+                  </div>
+                </td>
+                <td>{c.vendor}</td>
+                <td>{c.requester}</td>
+                <td>{c.owner}</td>
+                <td>
+                  <span className={styles.cat}>
+                    <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
+                    {c.category}
+                  </span>
+                </td>
+                <td>{c.overallStatus === 'completed' ? 'Completed' : 'Canceled'}</td>
+                <td>{formatUsd(c.value)}</td>
               </tr>
-            ) : (
-              rows.map((c) => (
-                <tr
-                  key={c.num}
-                  className={`${styles.bodyRow} ${styles.rowClosed}`}
-                  onClick={() => navigate(`/contracts/${c.num}`)}
-                >
-                  <td>
-                    <div className={styles.contractName}>
-                      <span>{c.title}</span>
-                      <span className={styles.contractNumber}>{c.num}</span>
-                    </div>
-                  </td>
-                  <td>{c.vendor}</td>
-                  <td>{c.requester}</td>
-                  <td>{c.owner}</td>
-                  <td>
-                    <span className={styles.cat}>
-                      <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
-                      {c.category}
-                    </span>
-                  </td>
-                  <td>{c.overallStatus === 'completed' ? 'Completed' : 'Canceled'}</td>
-                  <td>{formatUsd(c.value)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </TableShell>
     </div>
   );
 }
@@ -145,17 +151,4 @@ function sortRows(rows: Phase1Contract[], sort: { key: SortKey; dir: SortDir }):
     return 0;
   });
   return out;
-}
-
-function sortIconFor(sort: { key: SortKey; dir: SortDir }, key: SortKey): string {
-  if (sort.key !== key) return 'caret-up-down';
-  return sort.dir === 'asc' ? 'caret-up' : 'caret-down';
-}
-
-function sortAriaFor(
-  sort: { key: SortKey; dir: SortDir },
-  key: SortKey,
-): 'ascending' | 'descending' | 'none' {
-  if (sort.key !== key) return 'none';
-  return sort.dir === 'asc' ? 'ascending' : 'descending';
 }

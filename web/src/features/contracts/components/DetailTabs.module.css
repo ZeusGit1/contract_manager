@@ -1,0 +1,300 @@
+.tabs {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--border-light);
+  margin: var(--space-5) 0 var(--space-4);
+  overflow-x: auto;
+}
+
+.tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-3) 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-bottom-color: var(--accent-interactive);
+  color: var(--text-primary);
+}
+
+.tabPanel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+@media (max-width: 768px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.activityItem {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.activityIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.activityText {
+  font-size: 14px;
+}
+
+.activityWhen {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Documents tab */
+.docsHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.docsSummary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.docsEmpty {
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-light);
+  padding: var(--space-5);
+  border-radius: var(--radius);
+  text-align: center;
+  margin: 0;
+}
+
+.docsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.docItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-page);
+}
+
+.docIcon {
+  font-size: 24px;
+  color: var(--icon-default);
+}
+
+.docName {
+  font-weight: 600;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.docMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.docsTab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Comments tab */
+.commentsTab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.commentsEmpty {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.comment {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent-interactive);
+  border-radius: var(--radius);
+  background: var(--bg-page);
+}
+
+.commentInternal {
+  border-left-color: var(--color-gold);
+}
+
+.commentHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.commentAuthor {
+  font-size: 13px;
+}
+
+.commentMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.commentBody {
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.commentComposer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--border-light);
+  padding-top: var(--space-4);
+}
+
+.composerField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.composerLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.composerText {
+  padding: var(--space-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  font: inherit;
+  resize: vertical;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.composerFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.internalToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Notes tab */
+.notesTab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.notesCaption {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.notesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notesEmpty {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.note {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--color-gold);
+  border-radius: var(--radius);
+  background: var(--color-pale-gold);
+  color: var(--color-navy);
+}
+
+.noteHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.noteBody {
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notesComposer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.notesComposerActions {
+  display: flex;
+  justify-content: flex-end;
+}

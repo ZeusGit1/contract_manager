@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/mws/Badge';
+import { SortHeader, TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
 import { formatShortDate, formatUsd } from '@/lib/formatters';
 import { statusInfo } from '@/lib/statusMap';
 import type { ContractRowDto } from '@/types/api';
@@ -56,6 +57,8 @@ interface ContractTableProps {
   error: Error | null;
   emptyMessage?: string;
   columns?: Column[];
+  /** When filters are active and result is empty, expose a Clear-filters affordance. */
+  onClearFilters?: () => void;
 }
 
 export function ContractTable({
@@ -64,6 +67,7 @@ export function ContractTable({
   error,
   emptyMessage = 'No contracts match this view.',
   columns = DEFAULT_COLUMNS,
+  onClearFilters,
 }: ContractTableProps) {
   const navigate = useNavigate();
   const [sort, setSort] = useState<{ key: ColumnKey; dir: SortDir } | null>(null);
@@ -80,102 +84,83 @@ export function ContractTable({
   };
 
   return (
-    <div className={styles.tableShell}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {columns.map((column) => {
-              const sortable = SORTABLE.has(column.key);
-              const active = sort?.key === column.key;
-              const ariaSort: 'ascending' | 'descending' | 'none' = active
-                ? sort.dir === 'asc'
-                  ? 'ascending'
-                  : 'descending'
-                : 'none';
+    <TableShell minWidth={920}>
+      <thead>
+        <tr>
+          {columns.map((column) => {
+            if (column.key === 'flag') {
               return (
-                <th
-                  key={column.key}
-                  scope="col"
-                  aria-sort={sortable ? ariaSort : undefined}
-                  className={
-                    column.numeric
-                      ? styles.numeric
-                      : column.key === 'flag'
-                        ? styles.flagCell
-                        : undefined
-                  }
-                >
-                  {column.key === 'flag' ? (
-                    <span className="visually-hidden">Attention indicator</span>
-                  ) : sortable ? (
-                    <button
-                      type="button"
-                      className={styles.sortBtn}
-                      onClick={() => onSort(column.key)}
-                    >
-                      <span>{column.label}</span>
-                      <i
-                        className={`ph ph-${active ? (sort.dir === 'asc' ? 'caret-up' : 'caret-down') : 'caret-up-down'}`}
-                        aria-hidden="true"
-                      />
-                    </button>
-                  ) : (
-                    column.label
-                  )}
+                <th key={column.key} scope="col" className={styles.flagCell}>
+                  <span className="visually-hidden">Attention indicator</span>
                 </th>
               );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td colSpan={columns.length} className={styles.emptyRow}>
-                Loading contracts…
-              </td>
-            </tr>
-          ) : error ? (
-            <tr>
-              <td colSpan={columns.length} className={styles.emptyRow}>
-                Couldn&apos;t load contracts. Refresh to try again.
-              </td>
-            </tr>
-          ) : sortedRows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className={styles.emptyRow}>
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            sortedRows.map((row) => {
-              const stage = statusInfo(row.status);
+            }
+            if (SORTABLE.has(column.key)) {
               return (
-                <tr
-                  key={row.contractId}
-                  className={styles.bodyRow}
-                  onClick={() => navigate(`/contracts/${row.contractId}`)}
+                <SortHeader<ColumnKey>
+                  key={column.key}
+                  columnKey={column.key}
+                  activeKey={sort?.key ?? null}
+                  dir={sort?.dir ?? 'asc'}
+                  onSort={onSort}
+                  numeric={column.numeric}
                 >
-                  {columns.map((column) => (
-                    <td
-                      key={column.key}
-                      className={
-                        column.numeric
-                          ? styles.numeric
-                          : column.key === 'flag'
-                            ? styles.flagCell
-                            : undefined
-                      }
-                    >
-                      {renderCell(column, row, stage)}
-                    </td>
-                  ))}
-                </tr>
+                  {column.label}
+                </SortHeader>
               );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
+            }
+            return (
+              <th
+                key={column.key}
+                scope="col"
+                className={column.numeric ? styles.numeric : undefined}
+              >
+                {column.label}
+              </th>
+            );
+          })}
+        </tr>
+      </thead>
+      <tbody>
+        {isLoading ? (
+          <TableSkeletonRows columnCount={columns.length} />
+        ) : error ? (
+          <TableEmptyRow colSpan={columns.length}>
+            Couldn&apos;t load contracts. Refresh to try again.
+          </TableEmptyRow>
+        ) : sortedRows.length === 0 ? (
+          <TableEmptyRow colSpan={columns.length} onClearFilters={onClearFilters}>
+            {emptyMessage}
+          </TableEmptyRow>
+        ) : (
+          sortedRows.map((row) => {
+            const stage = statusInfo(row.status);
+            return (
+              <tr
+                key={row.contractId}
+                className={styles.bodyRow}
+                onClick={() => navigate(`/contracts/${row.contractId}`)}
+              >
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    className={
+                      column.numeric
+                        ? styles.numeric
+                        : column.key === 'flag'
+                          ? styles.flagCell
+                          : undefined
+                    }
+                  >
+                    {renderCell(column, row, stage)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </TableShell>
   );
 }
 

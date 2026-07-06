@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Lockup } from '@/mws/Lockup';
 import type { AppRole } from '@/types/contract';
 import styles from './AppShell.module.css';
@@ -76,10 +76,12 @@ const NAV_MORE: NavItem[] = [
   },
   {
     // Categories admin is restricted to ProcurementAdmin per ADR-032 / ADR-037.
+    // Phase 2 — schema is read-only in Phase 1; editing lands in Phase 2.
     to: '/settings/categories',
     label: 'Categories & fields',
     icon: 'gear',
     roles: ['ProcurementAdmin'],
+    comingSoon: true,
   },
 ];
 
@@ -91,39 +93,126 @@ interface AppShellProps {
   onToggleTheme: () => void;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])';
+
 export function AppShell({ children, userName, userRoles, theme, onToggleTheme }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Drawer closes via NavItemLink onClick + scrim click + Escape — no path-change effect needed.
+  // Current page label — matched against the nav lists so the top bar's location anchor
+  // stays in sync with the sidebar. Falls back to empty on routes not in a nav (e.g. /contracts/:id).
+  const pageTitle = useMemo(() => {
+    const all = [...NAV_PRIMARY, ...NAV_CREATE, ...NAV_MORE];
+    if (location.pathname === '/') return 'My dashboard';
+    const exact = all.find((item) => item.to === location.pathname);
+    if (exact) return exact.label;
+    const prefix = all
+      .filter((item) => item.to !== '/')
+      .find((item) => location.pathname.startsWith(item.to));
+    return prefix?.label ?? '';
+  }, [location.pathname]);
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Escape closes the drawer. Focus trap + focus-return handled in the dedicated effect below.
   useEffect(() => {
+    if (!drawerOpen) return;
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setDrawerOpen(false);
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [drawerOpen]);
+
+  // Focus trap: on open, move focus into the drawer; on close, return focus to the hamburger.
+  // Tab and Shift+Tab wrap within the drawer's focusable elements while open.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const drawer = drawerRef.current;
+    if (!drawer) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    // Snapshot the hamburger ref at effect-open so cleanup restores focus to the
+    // element that was mounted when the drawer opened (react-hooks/exhaustive-deps).
+    const hamburgerAtOpen = hamburgerRef.current;
+    const focusables = drawer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+    focusables[0]?.focus();
+
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const active = drawer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (active.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = active[0];
+      const last = active[active.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', trap);
+    return () => {
+      document.removeEventListener('keydown', trap);
+      // Restore focus to the hamburger — or wherever it came from — on close.
+      const target = hamburgerAtOpen ?? previouslyFocused;
+      target?.focus();
+    };
+  }, [drawerOpen]);
 
   const filteredItems = (items: NavItem[]) =>
     items.filter((item) => item.roles.some((role) => userRoles.includes(role)));
 
-  const sidebar = (
+  const primaryItems = filteredItems(NAV_PRIMARY);
+  const createItems = filteredItems(NAV_CREATE);
+  const moreItems = filteredItems(NAV_MORE);
+
+  const renderSidebar = (onLinkClick?: () => void) => (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       <div className={styles.sidebarHead}>
         <Lockup appName="Contract Manager" />
       </div>
-      <ul className={styles.nav}>
-        {filteredItems(NAV_PRIMARY).map((item) => (
-          <NavItemLink key={item.to} item={item} />
-        ))}
-        {filteredItems(NAV_CREATE).length > 0 ? <li className={styles.section}>Create</li> : null}
-        {filteredItems(NAV_CREATE).map((item) => (
-          <NavItemLink key={item.to} item={item} />
-        ))}
-        {filteredItems(NAV_MORE).length > 0 ? <li className={styles.section}>More</li> : null}
-        {filteredItems(NAV_MORE).map((item) => (
-          <NavItemLink key={item.to} item={item} />
-        ))}
-      </ul>
+      <div className={styles.nav}>
+        {primaryItems.length > 0 ? (
+          <ul className={styles.navList}>
+            {primaryItems.map((item) => (
+              <NavItemLink key={item.to} item={item} onNavigate={onLinkClick} />
+            ))}
+          </ul>
+        ) : null}
+        {createItems.length > 0 ? (
+          <>
+            <h2 id="nav-create-heading" className={styles.section}>
+              Create
+            </h2>
+            <ul className={styles.navList} aria-labelledby="nav-create-heading">
+              {createItems.map((item) => (
+                <NavItemLink key={item.to} item={item} onNavigate={onLinkClick} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+        {moreItems.length > 0 ? (
+          <>
+            <h2 id="nav-more-heading" className={styles.section}>
+              More
+            </h2>
+            <ul className={styles.navList} aria-labelledby="nav-more-heading">
+              {moreItems.map((item) => (
+                <NavItemLink key={item.to} item={item} onNavigate={onLinkClick} />
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </div>
       <div className={styles.pinned}>
         <div aria-hidden="true" className={styles.avatar}>
           {userName.slice(0, 1).toUpperCase()}
@@ -138,20 +227,36 @@ export function AppShell({ children, userName, userRoles, theme, onToggleTheme }
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.sidebarSlot}>{sidebar}</aside>
+      <aside className={styles.sidebarSlot}>{renderSidebar()}</aside>
       {drawerOpen ? (
-        <div className={styles.scrim} aria-hidden="true" onClick={() => setDrawerOpen(false)} />
+        <div className={styles.scrim} aria-hidden="true" onClick={closeDrawer} />
       ) : null}
-      <aside className={`${styles.drawer} ${drawerOpen ? styles.drawerOpen : ''}`}>{sidebar}</aside>
+      <aside
+        id="nav-drawer"
+        ref={drawerRef}
+        className={`${styles.drawer} ${drawerOpen ? styles.drawerOpen : ''}`}
+        role="dialog"
+        aria-modal={drawerOpen ? 'true' : undefined}
+        aria-label="Primary navigation"
+        aria-hidden={drawerOpen ? undefined : 'true'}
+      >
+        {renderSidebar(closeDrawer)}
+      </aside>
       <div className={styles.body}>
         <header className={styles.topbar}>
-          <button
-            className={styles.hamburger}
-            aria-label="Open navigation"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <i className="ph ph-list" aria-hidden="true" />
-          </button>
+          <div className={styles.topbarLeft}>
+            <button
+              ref={hamburgerRef}
+              className={styles.hamburger}
+              aria-label="Open navigation"
+              aria-expanded={drawerOpen}
+              aria-controls="nav-drawer"
+              onClick={() => setDrawerOpen(true)}
+            >
+              <i className="ph ph-list" aria-hidden="true" />
+            </button>
+            {pageTitle ? <span className={styles.pageTitle}>{pageTitle}</span> : null}
+          </div>
           <div className={styles.topbarRight}>
             <button
               type="button"
@@ -161,6 +266,14 @@ export function AppShell({ children, userName, userRoles, theme, onToggleTheme }
             >
               <i className={`ph ph-${theme === 'dark' ? 'sun' : 'moon'}`} aria-hidden="true" />
             </button>
+            <button
+              type="button"
+              className={styles.iconBtn}
+              aria-label={`Account · ${userName}`}
+              onClick={() => navigate('/profile')}
+            >
+              <i className="ph ph-user-circle" aria-hidden="true" />
+            </button>
           </div>
         </header>
         <main className={styles.main}>{children}</main>
@@ -169,7 +282,12 @@ export function AppShell({ children, userName, userRoles, theme, onToggleTheme }
   );
 }
 
-function NavItemLink({ item }: { item: NavItem }) {
+interface NavItemLinkProps {
+  item: NavItem;
+  onNavigate?: () => void;
+}
+
+function NavItemLink({ item, onNavigate }: NavItemLinkProps) {
   return (
     <li>
       <NavLink
@@ -178,6 +296,7 @@ function NavItemLink({ item }: { item: NavItem }) {
         className={({ isActive }) =>
           isActive ? `${styles.navItem} ${styles.navItemActive}` : styles.navItem
         }
+        onClick={onNavigate}
       >
         <i className={`ph ph-${item.icon}`} aria-hidden="true" />
         <span>{item.label}</span>

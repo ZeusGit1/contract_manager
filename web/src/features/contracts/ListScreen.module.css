@@ -67,7 +67,7 @@
   text-align: left;
   font-family: var(--font-sans);
   font-size: 12px;
-  letter-spacing: 5%;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-secondary);
   padding: var(--space-3);

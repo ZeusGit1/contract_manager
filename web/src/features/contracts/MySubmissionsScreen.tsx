@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { Button } from '@/mws/Button';
+import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
 import { PHASE1_CONTRACTS, nextActionDue, daysFromTodayLocal } from '@/lib/phase1Data';
 import { ME, type Phase1Contract } from '@/types/phase1';
 import { formatShortDate, formatUsd } from '@/lib/formatters';
@@ -48,81 +50,86 @@ export function MySubmissionsScreen() {
             Contracts where you are the requester or the procurement owner.
           </p>
         </div>
-        <button className="btn" onClick={() => navigate('/new-contract/category')}>
-          <i className="ph ph-plus" aria-hidden="true" /> New contract
-        </button>
+        <Button icon="plus" onClick={() => navigate('/new-contract/category')}>
+          New contract
+        </Button>
       </header>
 
-      <div className={styles.tableShell}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {HEADERS.map((h) => (
-                <th key={h.key} aria-sort={sortAriaFor(sort, h.key)}>
-                  <button type="button" className={styles.sortBtn} onClick={() => onSort(h.key)}>
-                    <span>{h.label}</span>
-                    <i className={`ph ph-${sortIconFor(sort, h.key)}`} aria-hidden="true" />
-                  </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr className={styles.emptyRow}>
-                <td colSpan={HEADERS.length}>You haven&rsquo;t submitted any contracts yet.</td>
-              </tr>
-            ) : (
-              rows.map((c) => {
-                const next = nextActionDue(c);
-                const days = daysFromTodayLocal(next);
-                const overdue = days != null && days < 0;
-                return (
-                  <tr
-                    key={c.num}
-                    className={styles.bodyRow}
-                    onClick={() => navigate(`/contracts/${c.num}`)}
-                  >
-                    <td>
-                      <div className={styles.contractName}>
-                        <span>{c.title}</span>
-                        <span className={styles.contractNumber}>{c.num}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={styles.cat}>
-                        <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
-                        {c.category}
+      <TableShell minWidth={720}>
+        <thead>
+          <tr>
+            {HEADERS.map((h) => (
+              <SortHeader<SortKey>
+                key={h.key}
+                columnKey={h.key}
+                activeKey={sort.key}
+                dir={sort.dir}
+                onSort={onSort}
+              >
+                {h.label}
+              </SortHeader>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <TableEmptyRow colSpan={HEADERS.length}>
+              You haven&rsquo;t submitted any contracts yet.
+            </TableEmptyRow>
+          ) : (
+            rows.map((c) => {
+              const next = nextActionDue(c);
+              const days = daysFromTodayLocal(next);
+              const overdue = days != null && days < 0;
+              return (
+                <tr
+                  key={c.num}
+                  className={styles.bodyRow}
+                  onClick={() => navigate(`/contracts/${c.num}`)}
+                >
+                  <td>
+                    <div className={styles.contractName}>
+                      <Link
+                        to={`/contracts/${c.num}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className={styles.contractLink}
+                      >
+                        {c.title}
+                      </Link>
+                      <span className={styles.contractNumber}>{c.num}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={styles.cat}>
+                      <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
+                      {c.category}
+                    </span>
+                  </td>
+                  <td>{c.requester}</td>
+                  <td>
+                    {c.overallStatus === 'completed'
+                      ? 'Completed'
+                      : c.overallStatus === 'canceled'
+                        ? 'Canceled'
+                        : 'Active'}
+                  </td>
+                  <td>
+                    {next ? (
+                      <span className={`${styles.due} ${overdue ? styles.dueOverdue : ''}`}>
+                        {overdue ? <i className="ph ph-warning-circle" aria-hidden="true" /> : null}
+                        {formatShortDate(next)}
                       </span>
-                    </td>
-                    <td>{c.requester}</td>
-                    <td>
-                      {c.overallStatus === 'completed'
-                        ? 'Completed'
-                        : c.overallStatus === 'canceled'
-                          ? 'Canceled'
-                          : 'Active'}
-                    </td>
-                    <td>
-                      {next ? (
-                        <span className={`${styles.due} ${overdue ? styles.dueOverdue : ''}`}>
-                          {overdue ? (
-                            <i className="ph ph-warning-circle" aria-hidden="true" />
-                          ) : null}
-                          {formatShortDate(next)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>{formatUsd(c.value)}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td>{formatUsd(c.value)}</td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </TableShell>
     </div>
   );
 }
@@ -164,17 +171,4 @@ function sortRows(rows: Phase1Contract[], sort: { key: SortKey; dir: SortDir }):
     return 0;
   });
   return out;
-}
-
-function sortIconFor(sort: { key: SortKey; dir: SortDir }, key: SortKey): string {
-  if (sort.key !== key) return 'caret-up-down';
-  return sort.dir === 'asc' ? 'caret-up' : 'caret-down';
-}
-
-function sortAriaFor(
-  sort: { key: SortKey; dir: SortDir },
-  key: SortKey,
-): 'ascending' | 'descending' | 'none' {
-  if (sort.key !== key) return 'none';
-  return sort.dir === 'asc' ? 'ascending' : 'descending';
 }
