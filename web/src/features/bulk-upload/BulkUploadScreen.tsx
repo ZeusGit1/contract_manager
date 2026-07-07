@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { api, apiJson } from '@/lib/apiClient';
-import type { BulkUploadPreviewDto, BulkUploadRowDto } from '@/types/api';
+import type { BulkUploadPreviewDto, BulkUploadRowDto, VendorSuggestionDto } from '@/types/api';
 import styles from './BulkUploadScreen.module.css';
+import { AddVendorInline } from './AddVendorInline';
+import { VendorPickerCell } from './VendorPickerCell';
+import { applyVendorMatchToAll, revalidateEditedField } from './bulkUpload.helpers';
 
 type BulkSourceId = 'spreadsheet' | 'spendconnect' | 'repository' | 'merger';
 
@@ -75,6 +78,8 @@ export function BulkUploadScreen() {
   const [editing, setEditing] = useState<EditingCell | null>(null);
   const [draft, setDraft] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  // Prefill for the AddVendorInline modal. `null` = closed. Empty string = open with no prefill.
+  const [addVendorPrefill, setAddVendorPrefill] = useState<string | null>(null);
 
   const previewMutation = useMutation<BulkUploadPreviewDto, Error, File>({
     mutationFn: async (file) => {
@@ -116,10 +121,14 @@ export function BulkUploadScreen() {
 
   const commitEdit = () => {
     if (!editing) return;
+    const { rowNumber, field } = editing;
+    const value = draft;
     setRows((prev) =>
-      prev.map((row) =>
-        row.rowNumber === editing.rowNumber ? { ...row, [editing.field]: draft } : row,
-      ),
+      prev.map((row) => {
+        if (row.rowNumber !== rowNumber) return row;
+        const updated = { ...row, [field]: value } as BulkUploadRowDto;
+        return revalidateEditedField(updated, field, value);
+      }),
     );
     setEditing(null);
     setDraft('');
@@ -128,6 +137,16 @@ export function BulkUploadScreen() {
   const cancelEdit = () => {
     setEditing(null);
     setDraft('');
+  };
+
+  const resolveVendorForMatchingRows = (sourceName: string, vendor: VendorSuggestionDto) => {
+    setRows((prev) => applyVendorMatchToAll(prev, sourceName, vendor));
+    setEditing(null);
+    setDraft('');
+  };
+
+  const openAddVendor = (name: string) => {
+    setAddVendorPrefill(name);
   };
 
   const toggleSkip = (rowNumber: number) => {
@@ -266,6 +285,8 @@ export function BulkUploadScreen() {
                     onCommit={commitEdit}
                     onCancel={cancelEdit}
                     onToggleSkip={toggleSkip}
+                    onResolveVendor={resolveVendorForMatchingRows}
+                    onRequestAddVendor={openAddVendor}
                   />
                 ))}
               </tbody>
@@ -300,6 +321,17 @@ export function BulkUploadScreen() {
             <p className={styles.error}>{commitMutation.error.message}</p>
           ) : null}
         </section>
+      ) : null}
+
+      {addVendorPrefill !== null ? (
+        <AddVendorInline
+          initialName={addVendorPrefill}
+          onCancel={() => setAddVendorPrefill(null)}
+          onCreated={(vendor) => {
+            resolveVendorForMatchingRows(addVendorPrefill, vendor);
+            setAddVendorPrefill(null);
+          }}
+        />
       ) : null}
     </div>
   );
@@ -336,6 +368,8 @@ interface BulkRowProps {
   onCommit: () => void;
   onCancel: () => void;
   onToggleSkip: (rowNumber: number) => void;
+  onResolveVendor: (sourceName: string, vendor: VendorSuggestionDto) => void;
+  onRequestAddVendor: (name: string) => void;
 }
 
 function BulkRow({
@@ -348,6 +382,8 @@ function BulkRow({
   onCommit,
   onCancel,
   onToggleSkip,
+  onResolveVendor,
+  onRequestAddVendor,
 }: BulkRowProps) {
   return (
     <tr className={isSkipped ? styles.rowSkipped : undefined}>
@@ -357,6 +393,27 @@ function BulkRow({
         const errorMessage = isSkipped ? null : findErrorFor(row.errors, col.key);
         const isEditing =
           editing != null && editing.rowNumber === row.rowNumber && editing.field === col.key;
+
+        if (col.key === 'vendorName') {
+          return (
+            <VendorPickerCell
+              key={col.key}
+              rowNumber={row.rowNumber}
+              value={value}
+              matchedVendorId={row.matchedVendorId}
+              errorMessage={errorMessage}
+              isSkipped={isSkipped}
+              isEditing={isEditing}
+              draft={isEditing ? draft : ''}
+              onDraftChange={onDraftChange}
+              onBeginEdit={() => onBeginEdit(row.rowNumber, col.key, value)}
+              onCancel={onCancel}
+              onResolve={(vendor) => onResolveVendor(value, vendor)}
+              onRequestAdd={onRequestAddVendor}
+            />
+          );
+        }
+
         return (
           <BulkCell
             key={col.key}
