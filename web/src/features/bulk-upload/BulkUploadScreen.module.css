@@ -278,3 +278,244 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* Vendor picker: read-mode "Matched" badge appears once matchedVendorId is set. */
+.vendorResolvedBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 2px var(--space-2);
+  background: var(--color-pale-success);
+  color: var(--color-navy);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Vendor typeahead popover — anchored to the input; z-index above sticky header. */
+.vendorPickerWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.vendorPickerPopover {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 20;
+  min-width: 240px;
+  max-width: calc(100vw - var(--space-5) * 2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+
+.vendorPickerHint {
+  padding: var(--space-3);
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.vendorPickerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.vendorPickerOption {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+
+.vendorPickerOption:hover,
+.vendorPickerOption:focus-visible {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  outline: none;
+}
+
+.vendorPickerWarning {
+  padding: 2px var(--space-2);
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vendorPickerFooter {
+  border-top: 1px solid var(--border-light);
+  padding: var(--space-2);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.vendorPickerAddButton {
+  background: transparent;
+  border: 0;
+  color: var(--accent-interactive);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius);
+  min-width: 0;
+  text-align: left;
+}
+
+.vendorPickerAddButton:hover,
+.vendorPickerAddButton:focus-visible {
+  background: var(--color-pale-blue);
+  color: var(--color-navy);
+  outline: none;
+}
+
+.vendorPickerCancel {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.vendorPickerCancel:hover,
+.vendorPickerCancel:focus-visible {
+  color: var(--accent-interactive);
+  outline: none;
+}
+
+/* AddVendorInline modal — shares shape with VendorMasterScreen's modal but scoped here. */
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  width: min(90vw, 560px);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: calc(100dvh - var(--space-7));
+  overflow-y: auto;
+}
+
+.modalHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalTitle {
+  font-family: var(--font-mix);
+  font-size: 24px;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.modalHint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.modalError {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--color-pale-orange);
+  color: var(--color-navy);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-default);
+  font-size: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fieldOptional {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.fieldInput {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-3);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
