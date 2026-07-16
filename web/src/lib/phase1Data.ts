@@ -1,9 +1,19 @@
 /**
  * Phase 1 seed data — mirrors the demo HTML at artifacts/demo/Contract-Manager-Demo.html.
- * Used while the backend lane model is built; replace with API hooks once available.
+ * The PHASE1_CONTRACTS constant is legacy demo data kept for reference; live screens
+ * fetch from the API and adapt rows via {@link apiRowToPhase1Contract}.
  */
 
-import type { ContractLane, LaneId, LaneStatus, Phase1Contract } from '@/types/phase1';
+import type { ContractDetailDto, ContractLaneDto, ContractRowDto, LanePillDto } from '@/types/api';
+import type {
+  ContractLane,
+  LaneId,
+  LaneStatus,
+  OverallStatus,
+  Phase1Contract,
+  Priority,
+} from '@/types/phase1';
+import type { LaneIdApi, LaneStatusApi, OverallStatusApi, PriorityApi } from '@/types/contract';
 
 const MS_DAY = 86_400_000;
 
@@ -489,4 +499,193 @@ export function needsAction(c: Phase1Contract): boolean {
   if (proc.status !== 'in_review' && proc.status !== 'waiting') return false;
   if (proc.dueDate == null) return true;
   return (daysFromTodayLocal(proc.dueDate) ?? 0) <= 3;
+}
+
+// -----------------------------------------------------------------------------
+// API → Phase1 adapters. The dashboard/archive/detail screens use the Phase1
+// lane vocabulary internally; the API uses the PascalCase v2 vocabulary. These
+// adapters keep the existing rendering + filtering logic intact while sourcing
+// live data.
+// -----------------------------------------------------------------------------
+
+const LANE_ID_API_TO_PHASE1: Record<LaneIdApi, LaneId> = {
+  Procurement: 'procurement',
+  Legal: 'legal',
+  InfoSec: 'infosec',
+  Privacy: 'privacy',
+  GCO: 'gco',
+  Vendor: 'vendor',
+  Requester: 'requester',
+  Signature: 'signature',
+  Filed: 'filed',
+};
+
+const LANE_STATUS_API_TO_PHASE1: Record<LaneStatusApi, LaneStatus> = {
+  NotStarted: 'not_started',
+  InReview: 'in_review',
+  Waiting: 'waiting',
+  Approved: 'approved',
+  Canceled: 'canceled',
+  NA: 'na',
+  Complete: 'complete',
+};
+
+const OVERALL_STATUS_API_TO_PHASE1: Record<OverallStatusApi, OverallStatus> = {
+  Active: 'active',
+  Completed: 'completed',
+  Canceled: 'canceled',
+};
+
+const PRIORITY_API_TO_PHASE1: Record<PriorityApi, Priority> = {
+  Low: 'low',
+  Medium: 'medium',
+  High: 'high',
+  Critical: 'critical',
+};
+
+const TODAY_ISO = () => new Date().toISOString().slice(0, 10);
+
+/** Convert an ISO date-time string (or plain YYYY-MM-DD) to YYYY-MM-DD. */
+function toDateOnly(value: string | null): string | null {
+  if (!value) return null;
+  return value.slice(0, 10);
+}
+
+const PHASE1_TO_API_LANE_ID: Record<LaneId, LaneIdApi> = {
+  procurement: 'Procurement',
+  legal: 'Legal',
+  infosec: 'InfoSec',
+  privacy: 'Privacy',
+  gco: 'GCO',
+  vendor: 'Vendor',
+  requester: 'Requester',
+  signature: 'Signature',
+  filed: 'Filed',
+};
+
+const PHASE1_TO_API_LANE_STATUS: Record<LaneStatus, LaneStatusApi> = {
+  not_started: 'NotStarted',
+  in_review: 'InReview',
+  waiting: 'Waiting',
+  approved: 'Approved',
+  canceled: 'Canceled',
+  na: 'NA',
+  complete: 'Complete',
+};
+
+const PHASE1_TO_API_OVERALL: Record<OverallStatus, OverallStatusApi> = {
+  active: 'Active',
+  completed: 'Completed',
+  canceled: 'Canceled',
+};
+
+const PHASE1_TO_API_PRIORITY: Record<Priority, PriorityApi> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+};
+
+export function laneIdToApi(id: LaneId): LaneIdApi {
+  return PHASE1_TO_API_LANE_ID[id];
+}
+
+export function laneStatusToApi(status: LaneStatus): LaneStatusApi {
+  return PHASE1_TO_API_LANE_STATUS[status];
+}
+
+export function overallStatusToApi(status: OverallStatus): OverallStatusApi {
+  return PHASE1_TO_API_OVERALL[status];
+}
+
+export function priorityToApi(priority: Priority): PriorityApi {
+  return PHASE1_TO_API_PRIORITY[priority];
+}
+
+/** Convert an API row pill + optional detail lane into the Phase1 lane shape. */
+function laneFromPill(pill: LanePillDto): ContractLane {
+  return {
+    id: LANE_ID_API_TO_PHASE1[pill.laneId],
+    status: LANE_STATUS_API_TO_PHASE1[pill.status],
+    owner: pill.ownerName ?? null,
+    dueDate: toDateOnly(pill.dueDate),
+    lastUpdated: TODAY_ISO(),
+    note: null,
+  };
+}
+
+/** Convert a detail lane (has last-updated + note + owner label) into the Phase1 lane shape. */
+export function laneFromDetail(lane: ContractLaneDto): ContractLane {
+  return {
+    id: LANE_ID_API_TO_PHASE1[lane.laneId],
+    status: LANE_STATUS_API_TO_PHASE1[lane.status],
+    owner: lane.ownerName ?? lane.ownerLabel ?? null,
+    dueDate: toDateOnly(lane.dueDate),
+    lastUpdated: toDateOnly(lane.lastUpdated) ?? TODAY_ISO(),
+    note: lane.note,
+  };
+}
+
+/** Map an API ContractRowDto into the Phase1Contract shape used by DashboardScreen. */
+export function apiRowToPhase1Contract(row: ContractRowDto): Phase1Contract {
+  return {
+    contractId: row.contractId,
+    num: row.contractNumber,
+    title: row.title,
+    vendor: row.vendorName,
+    category: row.category,
+    requester: row.requesterName,
+    owner: row.procurementOwnerName ?? 'Unassigned',
+    priority: PRIORITY_API_TO_PHASE1[row.priority],
+    overallStatus: OVERALL_STATUS_API_TO_PHASE1[row.overallStatus],
+    value: row.totalCostUsd ?? 0,
+    startDate: toDateOnly(row.termStartDate),
+    endDate: toDateOnly(row.termEndDate),
+    description: '',
+    lanes: row.lanes.map(laneFromPill),
+  };
+}
+
+/** Map an API ContractDetailDto (+ its lanes) into the Phase1Contract shape. */
+export function apiDetailToPhase1Contract(
+  detail: ContractDetailDto,
+  lanes: ContractLaneDto[],
+): Phase1Contract {
+  return {
+    contractId: detail.contractId,
+    num: detail.contractNumber,
+    title: detail.title,
+    vendor: detail.vendorName,
+    category: detail.category,
+    requester: detail.requesterName,
+    requesterEmail: detail.requesterEmail,
+    owner: detail.procurementOwnerName ?? 'Unassigned',
+    priority: PRIORITY_API_TO_PHASE1[detail.priority],
+    overallStatus: OVERALL_STATUS_API_TO_PHASE1[detail.overallStatus],
+    value: detail.totalCostUsd ?? 0,
+    startDate: toDateOnly(detail.termStartDate),
+    endDate: toDateOnly(detail.termEndDate),
+    description: detail.description ?? '',
+    lanes: lanes.map(laneFromDetail),
+    event: detail.eventFields
+      ? {
+          eventName: detail.eventFields.eventName ?? '',
+          eventDate: toDateOnly(detail.eventFields.eventDate),
+          venue: detail.eventFields.venueLocation ?? '',
+          parentEvent: detail.eventFields.parentEventName ?? '',
+        }
+      : undefined,
+    facilities: detail.facilitiesFields
+      ? { building: detail.facilitiesFields.building ?? '' }
+      : undefined,
+    itFields: detail.itFields
+      ? {
+          itType: detail.itFields.itType,
+          accessesPersonalData: detail.itFields.accessesPersonalData,
+          accessesPHI: detail.itFields.accessesPHI,
+          accessesClientMatter: detail.itFields.accessesClientMatter,
+          usesAI: detail.itFields.usesAI,
+        }
+      : undefined,
+  };
 }

@@ -3,9 +3,13 @@ import type {
   ContractStatus,
   Hosting,
   ITType,
+  LaneIdApi,
+  LaneStatusApi,
   LicensingType,
   NoteType,
+  OverallStatusApi,
   PreferredStatus,
+  PriorityApi,
   VendorType,
   AppRole,
 } from './contract';
@@ -18,7 +22,41 @@ export interface CurrentUserResponse {
   roles: AppRole[];
 }
 
+/** Compact lane summary emitted with each row so the SPA can render pills
+ *  without a second round-trip. Mirrors LanePillDto in the API. */
+export interface LanePillDto {
+  laneId: LaneIdApi;
+  status: LaneStatusApi;
+  ownerName: string | null;
+  dueDate: string | null;
+}
+
+/** Mirrors ContractRowDto in the API (v2 parallel-lanes model). */
 export interface ContractRowDto {
+  contractId: number;
+  contractNumber: string;
+  title: string;
+  category: Category;
+  overallStatus: OverallStatusApi;
+  priority: PriorityApi;
+  vendorId: number;
+  vendorName: string;
+  requesterUserId: string;
+  requesterName: string;
+  procurementOwnerUserId: string | null;
+  procurementOwnerName: string | null;
+  totalCostUsd: number | null;
+  termStartDate: string | null;
+  termEndDate: string | null;
+  submittedAt: string;
+  lastActionAt: string;
+  activeLaneCount: number;
+  lanes: LanePillDto[];
+}
+
+/** Legacy row shape retained only for the (soon-to-be-removed) linear-status ContractTable
+ *  primitive. Prefer ContractRowDto everywhere. */
+export interface LegacyContractRowDto {
   contractId: number;
   contractNumber: string;
   title: string;
@@ -27,8 +65,6 @@ export interface ContractRowDto {
   vendorName: string;
   vendorId: number;
   assignedReviewerName: string | null;
-  assignedReviewerTeam: string | null;
-  assignedReviewerUserId: string | null;
   totalCostUsd: number | null;
   termEndDate: string | null;
   lastActionAt: string;
@@ -46,35 +82,19 @@ export interface TriageCountsDto {
   closed: number;
 }
 
-export interface ContractDetailDto {
-  contractId: number;
-  contractNumber: string;
-  title: string;
-  category: Category;
-  status: ContractStatus;
-  vendorId: number;
-  vendorName: string;
-  vendorPreferredStatus: PreferredStatus;
-  requesterUserId: string;
-  requesterName: string;
-  assignedReviewerUserId: string | null;
-  assignedReviewerName: string | null;
-  totalCostUsd: number | null;
-  signatureDeadline: string | null;
-  submittedAt: string;
-  termStartDate: string | null;
-  termEndDate: string | null;
-  lastActionAt: string;
-  nextActionDueAt: string | null;
-  description: string | null;
-  // Event-only
+export interface EventFieldsDto {
+  eventName: string | null;
   eventDate: string | null;
   venueLocation: string | null;
-  partOfLargerEvent: boolean | null;
   parentEventName: string | null;
-  // Facilities-only
+}
+
+export interface FacilitiesFieldsDto {
+  building: string | null;
   serviceDescription: string | null;
-  // IT-only
+}
+
+export interface ItFieldsDto {
   itType: ITType | null;
   applicationName: string | null;
   applicationVersion: string | null;
@@ -86,18 +106,67 @@ export interface ContractDetailDto {
   integrations: string | null;
   accessesPersonalData: boolean | null;
   accessesPHI: boolean | null;
+  accessesClientMatter: boolean | null;
   usesAI: boolean | null;
-  commentCount: number;
-  noteCount: number;
-  attachmentCount: number;
-  canEdit: boolean;
 }
 
+export interface ContractCapabilitiesDto {
+  canEditHeader: boolean;
+  canUpdateLanes: boolean;
+  canManageAssignments: boolean;
+  canSendReminder: boolean;
+  canSeeInternalOnlyComments: boolean;
+  canSeeNotes: boolean;
+}
+
+export interface ContractDetailDto {
+  contractId: number;
+  contractNumber: string;
+  title: string;
+  category: Category;
+  overallStatus: OverallStatusApi;
+  priority: PriorityApi;
+  vendorId: number;
+  vendorName: string;
+  vendorPreferredStatus: PreferredStatus;
+  requesterUserId: string;
+  requesterName: string;
+  requesterEmail: string;
+  procurementOwnerUserId: string | null;
+  procurementOwnerName: string | null;
+  totalCostUsd: number | null;
+  termStartDate: string | null;
+  termEndDate: string | null;
+  submittedAt: string;
+  lastActionAt: string;
+  description: string | null;
+  eventFields: EventFieldsDto | null;
+  facilitiesFields: FacilitiesFieldsDto | null;
+  itFields: ItFieldsDto | null;
+  customFieldValues: Record<string, string | null>;
+  capabilities: ContractCapabilitiesDto;
+}
+
+/** Mirrors ContractLaneDto in the API. */
+export interface ContractLaneDto {
+  contractLaneId: number;
+  contractId: number;
+  laneId: LaneIdApi;
+  status: LaneStatusApi;
+  ownerUserId: string | null;
+  ownerName: string | null;
+  ownerLabel: string | null;
+  dueDate: string | null;
+  lastUpdated: string;
+  note: string | null;
+}
+
+/** API returns { items, page, pageSize, totalCount } — mirror it exactly. */
 export interface PagedResult<T> {
   items: T[];
-  total: number;
   page: number;
   pageSize: number;
+  totalCount: number;
 }
 
 export interface CommentDto {
@@ -167,8 +236,10 @@ export interface VendorContractRefDto {
   contractId: number;
   contractNumber: string;
   title: string;
-  status: ContractStatus;
+  overallStatus: OverallStatusApi;
+  priority: PriorityApi;
   category: Category;
+  activeLaneCount: number;
 }
 
 export interface VendorSummaryDto {
@@ -218,4 +289,33 @@ export interface ReminderSettingDto {
   cadenceDays: number;
   templateBody: string;
   isEnabled: boolean;
+}
+
+/** Mirrors UserSummaryDto in the API. */
+export interface UserSummaryDto {
+  userId: string;
+  displayName: string;
+  email: string | null;
+}
+
+/** Mirrors ReminderTargetDto in the API — lanes the caller can send a reminder to. */
+export interface ReminderTargetDto {
+  laneId: LaneIdApi;
+  status: LaneStatusApi;
+  ownerLabel: string | null;
+  recipientEmail: string | null;
+}
+
+/** Mirrors NotificationLogDto in the API. */
+export interface NotificationLogDto {
+  notificationLogId: number;
+  contractId: number;
+  targetLaneId: LaneIdApi;
+  channel: string;
+  recipientLabel: string | null;
+  recipientEmail: string | null;
+  subject: string;
+  status: string;
+  failureReason: string | null;
+  sentAt: string;
 }

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
-import { PHASE1_CONTRACTS } from '@/lib/phase1Data';
+import { SortHeader, TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
+import { apiRowToPhase1Contract } from '@/lib/phase1Data';
 import type { Phase1Contract } from '@/types/phase1';
 import { formatUsd } from '@/lib/formatters';
+import { useContractArchive } from './hooks';
 
 import styles from './Phase1.module.css';
 
@@ -30,11 +31,12 @@ const HEADERS: { key: SortKey; label: string }[] = [
 export function ArchiveScreen() {
   const navigate = useNavigate();
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'title', dir: 'asc' });
+  const archiveQuery = useContractArchive({});
 
   const rows = useMemo(() => {
-    const base = PHASE1_CONTRACTS.filter((c) => c.overallStatus !== 'active');
+    const base = (archiveQuery.data?.items ?? []).map(apiRowToPhase1Contract);
     return sortRows(base, sort);
-  }, [sort]);
+  }, [archiveQuery.data, sort]);
 
   const onSort = (key: SortKey) =>
     setSort((prev) =>
@@ -52,6 +54,12 @@ export function ArchiveScreen() {
           </p>
         </div>
       </header>
+      {archiveQuery.error ? (
+        <div className={styles.banner} role="alert">
+          <i className="ph ph-warning-circle" aria-hidden="true" />
+          <span>Couldn&apos;t load archived contracts. Refresh to try again.</span>
+        </div>
+      ) : null}
       <TableShell minWidth={960}>
         <thead>
           <tr>
@@ -69,40 +77,45 @@ export function ArchiveScreen() {
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 ? (
+          {archiveQuery.isLoading ? (
+            <TableSkeletonRows columnCount={HEADERS.length} />
+          ) : rows.length === 0 ? (
             <TableEmptyRow colSpan={HEADERS.length}>No closed contracts yet.</TableEmptyRow>
           ) : (
-            rows.map((c) => (
-              <tr
-                key={c.num}
-                className={`${styles.bodyRow} ${styles.rowClosed}`}
-                onClick={() => navigate(`/contracts/${c.num}`)}
-              >
-                <td>
-                  <div className={styles.contractName}>
-                    <Link
-                      to={`/contracts/${c.num}`}
-                      onClick={(event) => event.stopPropagation()}
-                      className={styles.contractLink}
-                    >
-                      {c.title}
-                    </Link>
-                    <span className={styles.contractNumber}>{c.num}</span>
-                  </div>
-                </td>
-                <td>{c.vendor}</td>
-                <td>{c.requester}</td>
-                <td>{c.owner}</td>
-                <td>
-                  <span className={styles.cat}>
-                    <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
-                    {c.category}
-                  </span>
-                </td>
-                <td>{c.overallStatus === 'completed' ? 'Completed' : 'Canceled'}</td>
-                <td>{formatUsd(c.value)}</td>
-              </tr>
-            ))
+            rows.map((c) => {
+              const detailKey = c.contractId ?? c.num;
+              return (
+                <tr
+                  key={detailKey}
+                  className={`${styles.bodyRow} ${styles.rowClosed}`}
+                  onClick={() => navigate(`/contracts/${detailKey}`)}
+                >
+                  <td>
+                    <div className={styles.contractName}>
+                      <Link
+                        to={`/contracts/${detailKey}`}
+                        onClick={(event) => event.stopPropagation()}
+                        className={styles.contractLink}
+                      >
+                        {c.title}
+                      </Link>
+                      <span className={styles.contractNumber}>{c.num}</span>
+                    </div>
+                  </td>
+                  <td>{c.vendor}</td>
+                  <td>{c.requester}</td>
+                  <td>{c.owner}</td>
+                  <td>
+                    <span className={styles.cat}>
+                      <i className={`ph ph-${CATEGORY_ICON[c.category]}`} aria-hidden="true" />
+                      {c.category}
+                    </span>
+                  </td>
+                  <td>{c.overallStatus === 'completed' ? 'Completed' : 'Canceled'}</td>
+                  <td>{formatUsd(c.value)}</td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </TableShell>

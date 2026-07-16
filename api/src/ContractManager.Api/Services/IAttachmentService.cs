@@ -1,5 +1,3 @@
-using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
 using ContractManager.Api.Data;
 using ContractManager.Api.Domain;
 using ContractManager.Api.Dtos;
@@ -30,20 +28,20 @@ public class AttachmentService : IAttachmentService
     private readonly ContractManagerDbContext _db;
     private readonly IContractAccess _access;
     private readonly IActivityRecorder _activity;
-    private readonly BlobContainerClient _container;
+    private readonly IAttachmentBlobStore _blobStore;
     private readonly AttachmentOptions _attachmentOptions;
 
     public AttachmentService(
         ContractManagerDbContext db,
         IContractAccess access,
         IActivityRecorder activity,
-        BlobContainerClient container,
+        IAttachmentBlobStore blobStore,
         IOptions<AttachmentOptions> attachmentOptions)
     {
         _db = db;
         _access = access;
         _activity = activity;
-        _container = container;
+        _blobStore = blobStore;
         _attachmentOptions = attachmentOptions.Value;
     }
 
@@ -105,13 +103,10 @@ public class AttachmentService : IAttachmentService
 
         var guid = Guid.NewGuid();
         var blobPath = $"{guid:N}/{safeName}";
-        var blobClient = _container.GetBlobClient(blobPath);
 
         try
         {
-            await blobClient.UploadAsync(content,
-                new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
-                ct).ConfigureAwait(false);
+            await _blobStore.UploadAsync(blobPath, content, contentType, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -138,7 +133,7 @@ public class AttachmentService : IAttachmentService
         }
         catch (Exception ex)
         {
-            try { await blobClient.DeleteIfExistsAsync(cancellationToken: ct).ConfigureAwait(false); }
+            try { await _blobStore.DeleteIfExistsAsync(blobPath, ct).ConfigureAwait(false); }
             catch { /* best-effort cleanup */ }
             throw new SqlPersistFailedAfterBlobException("SQL persist failed after blob upload.", ex);
         }
@@ -162,9 +157,8 @@ public class AttachmentService : IAttachmentService
         if (attachment is null) return null;
         if (!await _access.CanAccessAsync(attachment.ContractId, ct).ConfigureAwait(false)) return null;
 
-        var blobClient = _container.GetBlobClient(attachment.BlobPath);
-        var response = await blobClient.DownloadStreamingAsync(cancellationToken: ct).ConfigureAwait(false);
-        return new AttachmentDownload(response.Value.Content, attachment.FileName, attachment.ContentType);
+        var content = await _blobStore.DownloadAsync(attachment.BlobPath, ct).ConfigureAwait(false);
+        return new AttachmentDownload(content, attachment.FileName, attachment.ContentType);
     }
 
     public async Task<bool?> DeleteAsync(int attachmentId, CancellationToken ct)

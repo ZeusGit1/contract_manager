@@ -2,31 +2,27 @@ import { useRef, useState } from 'react';
 import { Button } from '@/mws/Button';
 import { formatFullDate, formatShortDate, formatUsd } from '@/lib/formatters';
 import type { Phase1Contract } from '@/types/phase1';
+import type { AttachmentDto } from '@/types/api';
 import { Def } from './DetailRail';
+import { formatBytes, ynLabel, type TabId } from './contractDetail.helpers';
 import {
-  formatBytes,
-  ME_NAME,
-  ynLabel,
-  type ActivityItem,
-  type CommentItem,
-  type DocItem,
-  type NoteItem,
-  type TabId,
-} from './contractDetail.helpers';
+  downloadAttachment,
+  useAddComment,
+  useAddNote,
+  useContractActivity,
+  useContractAttachments,
+  useContractComments,
+  useContractNotes,
+  useDeleteAttachment,
+  useUploadAttachments,
+} from '../hooks';
 import styles from './DetailTabs.module.css';
 
 interface DetailTabsProps {
   current: TabId;
   onChange: (id: TabId) => void;
   contract: Phase1Contract;
-  activity: ActivityItem[];
-  docs: DocItem[];
-  comments: CommentItem[];
-  notes: NoteItem[];
-  onAddDoc: (item: DocItem) => void;
-  onDeleteDoc: (id: string) => void;
-  onAddComment: (item: CommentItem) => void;
-  onAddNote: (item: NoteItem) => void;
+  contractId: number;
 }
 
 const TABS: { id: TabId; label: string }[] = [
@@ -39,19 +35,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 /** Contract-detail tabs — Details / Documents / Comments / Notes / Activity.
  *  Tab row scrolls horizontally on narrow viewports per navigation-and-ia.md. */
-export function DetailTabs({
-  current,
-  onChange,
-  contract,
-  activity,
-  docs,
-  comments,
-  notes,
-  onAddDoc,
-  onDeleteDoc,
-  onAddComment,
-  onAddNote,
-}: DetailTabsProps) {
+export function DetailTabs({ current, onChange, contract, contractId }: DetailTabsProps) {
   return (
     <>
       <div role="tablist" className={styles.tabs}>
@@ -69,12 +53,10 @@ export function DetailTabs({
       </div>
       <div className={styles.tabPanel}>
         {current === 'details' ? <DetailsPane contract={contract} /> : null}
-        {current === 'activity' ? <ActivityPane activity={activity} /> : null}
-        {current === 'documents' ? (
-          <DocumentsPane docs={docs} onAdd={onAddDoc} onDelete={onDeleteDoc} />
-        ) : null}
-        {current === 'comments' ? <CommentsPane comments={comments} onAdd={onAddComment} /> : null}
-        {current === 'notes' ? <NotesPane notes={notes} onAdd={onAddNote} /> : null}
+        {current === 'activity' ? <ActivityPane contractId={contractId} /> : null}
+        {current === 'documents' ? <DocumentsPane contractId={contractId} /> : null}
+        {current === 'comments' ? <CommentsPane contractId={contractId} /> : null}
+        {current === 'notes' ? <NotesPane contractId={contractId} /> : null}
       </div>
     </>
   );
@@ -126,17 +108,31 @@ function DetailsPane({ contract }: { contract: Phase1Contract }) {
   );
 }
 
-function ActivityPane({ activity }: { activity: ActivityItem[] }) {
+/** Activity pane — reads server-emitted ActivityEventDto items. */
+function ActivityPane({ contractId }: { contractId: number }) {
+  const query = useContractActivity(contractId);
+
+  if (query.isLoading) return <p className={styles.docsEmpty}>Loading activity…</p>;
+  if (query.error) {
+    return (
+      <p className={styles.docsError} role="alert">
+        Couldn&apos;t load activity. Refresh to try again.
+      </p>
+    );
+  }
+  const activity = query.data ?? [];
+  if (activity.length === 0) return <p className={styles.docsEmpty}>No activity yet.</p>;
+
   return (
     <div className={styles.activityList}>
-      {activity.map((event, index) => (
-        <div key={index} className={styles.activityItem}>
+      {activity.map((event) => (
+        <div key={event.activityEventId} className={styles.activityItem}>
           <span className={styles.activityIcon}>
-            <i className={`ph ph-${event.icon}`} aria-hidden="true" />
+            <i className={`ph ph-${iconForActivity(event.type)}`} aria-hidden="true" />
           </span>
           <div>
-            <div className={styles.activityText}>{event.text}</div>
-            <div className={styles.activityWhen}>{event.when}</div>
+            <div className={styles.activityText}>{event.descriptionLine}</div>
+            <div className={styles.activityWhen}>{formatShortDate(event.occurredAt)}</div>
           </div>
         </div>
       ))}
@@ -144,37 +140,103 @@ function ActivityPane({ activity }: { activity: ActivityItem[] }) {
   );
 }
 
-interface DocumentsPaneProps {
-  docs: DocItem[];
-  onAdd: (item: DocItem) => void;
-  onDelete: (id: string) => void;
+function iconForActivity(type: string): string {
+  switch (type) {
+    case 'ContractCreated':
+      return 'file-plus';
+    case 'LaneStatusChanged':
+      return 'arrow-right';
+    case 'LaneOwnerChanged':
+      return 'identification-badge';
+    case 'LaneNoteUpdated':
+      return 'note-pencil';
+    case 'LaneDueDateChanged':
+      return 'calendar-blank';
+    case 'OverallStatusChanged':
+      return 'check-circle';
+    case 'OwnerReassigned':
+      return 'user-switch';
+    case 'CommentAdded':
+      return 'chat-circle';
+    case 'NoteAdded':
+      return 'note-pencil';
+    case 'AttachmentAdded':
+      return 'paperclip';
+    case 'AttachmentRemoved':
+      return 'trash';
+    case 'ReminderLogged':
+      return 'bell';
+    case 'BulkImported':
+      return 'upload-simple';
+    case 'AssignmentAdded':
+    case 'AssignmentRemoved':
+      return 'user-plus';
+    default:
+      return 'circle';
+  }
 }
 
-function DocumentsPane({ docs, onAdd, onDelete }: DocumentsPaneProps) {
+/**
+ * Documents pane — self-contained. Fetches the attachments list, uploads via the batch
+ * protocol, downloads by streaming a blob into an object URL, and soft-deletes.
+ * All state lives on the server; nothing is kept in local component state.
+ */
+function DocumentsPane({ contractId }: { contractId: number }) {
+  const listQuery = useContractAttachments(contractId);
+  const uploadMutation = useUploadAttachments(contractId);
+  const deleteMutation = useDeleteAttachment(contractId);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const attachments = listQuery.data ?? [];
 
   const handleFiles = (files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach((file) => {
-      onAdd({
-        id: crypto.randomUUID(),
-        name: file.name,
-        size: file.size,
-        uploadedBy: ME_NAME,
-        uploadedAt: new Date().toISOString(),
-      });
+    if (!files || files.length === 0) return;
+    const arr = Array.from(files);
+    uploadMutation.mutate(arr, {
+      onSettled: () => {
+        if (inputRef.current) inputRef.current.value = '';
+      },
     });
-    if (inputRef.current) inputRef.current.value = '';
   };
+
+  const handleDownload = async (attachment: AttachmentDto) => {
+    setDownloadError(null);
+    setDownloadingId(attachment.contractAttachmentId);
+    try {
+      await downloadAttachment(attachment);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Couldn’t download the file.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDelete = (attachment: AttachmentDto) => {
+    if (!confirm(`Remove ${attachment.fileName}? This can’t be undone.`)) return;
+    deleteMutation.mutate(attachment.contractAttachmentId);
+  };
+
+  if (contractId <= 0) {
+    return (
+      <p className={styles.docsEmpty}>Attachments become available after the contract is saved.</p>
+    );
+  }
 
   return (
     <div className={styles.docsTab}>
       <div className={styles.docsHead}>
         <p className={styles.docsSummary}>
-          {docs.length} {docs.length === 1 ? 'document' : 'documents'} attached
+          {attachments.length} {attachments.length === 1 ? 'document' : 'documents'} attached
         </p>
-        <Button variant="secondary" icon="upload-simple" onClick={() => inputRef.current?.click()}>
-          Upload document
+        <Button
+          variant="secondary"
+          icon="upload-simple"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploadMutation.isPending}
+        >
+          {uploadMutation.isPending ? 'Uploading…' : 'Upload document'}
         </Button>
       </div>
       <input
@@ -184,77 +246,128 @@ function DocumentsPane({ docs, onAdd, onDelete }: DocumentsPaneProps) {
         style={{ display: 'none' }}
         onChange={(event) => handleFiles(event.target.files)}
       />
-      {docs.length === 0 ? (
+      {uploadMutation.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t upload: {uploadMutation.error.message}
+        </p>
+      ) : null}
+      {deleteMutation.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t remove: {deleteMutation.error.message}
+        </p>
+      ) : null}
+      {downloadError ? (
+        <p className={styles.docsError} role="alert">
+          {downloadError}
+        </p>
+      ) : null}
+      {listQuery.isLoading ? (
+        <p className={styles.docsEmpty}>Loading attachments…</p>
+      ) : listQuery.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t load attachments. Refresh to try again.
+        </p>
+      ) : attachments.length === 0 ? (
         <p className={styles.docsEmpty}>
           No documents attached yet. Upload the contract draft, signed copy, or any supporting
           files.
         </p>
       ) : (
         <ul className={styles.docsList}>
-          {docs.map((doc) => (
-            <li key={doc.id} className={styles.docItem}>
-              <i className={`ph ph-file-text ${styles.docIcon}`} aria-hidden="true" />
-              <div>
-                <div className={styles.docName}>{doc.name}</div>
-                <div className={styles.docMeta}>
-                  {formatBytes(doc.size)} · {doc.uploadedBy} · {formatShortDate(doc.uploadedAt)}
+          {attachments.map((doc) => {
+            const isDownloading = downloadingId === doc.contractAttachmentId;
+            return (
+              <li key={doc.contractAttachmentId} className={styles.docItem}>
+                <i className={`ph ph-file-text ${styles.docIcon}`} aria-hidden="true" />
+                <div>
+                  <button
+                    type="button"
+                    className={styles.docNameButton}
+                    onClick={() => handleDownload(doc)}
+                    disabled={isDownloading}
+                    aria-label={`Download ${doc.fileName}`}
+                  >
+                    <span className={styles.docName}>{doc.fileName}</span>
+                  </button>
+                  <div className={styles.docMeta}>
+                    {formatBytes(doc.sizeBytes)} · {formatShortDate(doc.createdAt)}
+                    {isDownloading ? ' · Downloading…' : ''}
+                  </div>
                 </div>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="trash"
-                onClick={() => onDelete(doc.id)}
-                aria-label={`Remove ${doc.name}`}
-              >
-                Remove
-              </Button>
-            </li>
-          ))}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="download-simple"
+                  onClick={() => handleDownload(doc)}
+                  disabled={isDownloading}
+                  aria-label={`Download ${doc.fileName}`}
+                >
+                  Download
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="trash"
+                  onClick={() => handleDelete(doc)}
+                  disabled={deleteMutation.isPending}
+                  aria-label={`Remove ${doc.fileName}`}
+                >
+                  Remove
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 }
 
-interface CommentsPaneProps {
-  comments: CommentItem[];
-  onAdd: (item: CommentItem) => void;
-}
-
-function CommentsPane({ comments, onAdd }: CommentsPaneProps) {
+function CommentsPane({ contractId }: { contractId: number }) {
+  const listQuery = useContractComments(contractId);
+  const addMutation = useAddComment(contractId);
   const [text, setText] = useState('');
   const [isInternal, setIsInternal] = useState(false);
+
+  const comments = listQuery.data ?? [];
 
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    onAdd({
-      id: crypto.randomUUID(),
-      author: ME_NAME,
-      text: trimmed,
-      when: new Date().toISOString(),
-      isInternal,
-    });
-    setText('');
+    addMutation.mutate(
+      { text: trimmed, isInternalOnly: isInternal },
+      { onSuccess: () => setText('') },
+    );
   };
 
   return (
     <div className={styles.commentsTab}>
+      {listQuery.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t load comments. Refresh to try again.
+        </p>
+      ) : null}
+      {addMutation.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t post comment: {addMutation.error.message}
+        </p>
+      ) : null}
       <div className={styles.commentsList}>
-        {comments.length === 0 ? (
+        {listQuery.isLoading ? (
+          <p className={styles.commentsEmpty}>Loading comments…</p>
+        ) : comments.length === 0 ? (
           <p className={styles.commentsEmpty}>No comments yet. Start the conversation below.</p>
         ) : (
           comments.map((comment) => (
             <div
-              key={comment.id}
-              className={`${styles.comment} ${comment.isInternal ? styles.commentInternal : ''}`}
+              key={comment.contractCommentId}
+              className={`${styles.comment} ${comment.isInternalOnly ? styles.commentInternal : ''}`}
             >
               <div className={styles.commentHead}>
-                <strong className={styles.commentAuthor}>{comment.author}</strong>
+                <strong className={styles.commentAuthor}>{comment.authorName}</strong>
                 <span className={styles.commentMeta}>
-                  {comment.isInternal ? 'Internal · ' : ''}
-                  {formatShortDate(comment.when)}
+                  {comment.isInternalOnly ? 'Internal · ' : ''}
+                  {formatShortDate(comment.createdAt)}
                 </span>
               </div>
               <div className={styles.commentBody}>{comment.text}</div>
@@ -271,6 +384,7 @@ function CommentsPane({ comments, onAdd }: CommentsPaneProps) {
             onChange={(event) => setText(event.target.value)}
             placeholder="Comments are visible to the contract team."
             rows={3}
+            disabled={addMutation.isPending}
           />
         </label>
         <div className={styles.composerFooter}>
@@ -279,11 +393,16 @@ function CommentsPane({ comments, onAdd }: CommentsPaneProps) {
               type="checkbox"
               checked={isInternal}
               onChange={(event) => setIsInternal(event.target.checked)}
+              disabled={addMutation.isPending}
             />
             Internal only (not shared outside procurement)
           </label>
-          <Button icon="paper-plane-tilt" onClick={handleSubmit} disabled={!text.trim()}>
-            Post comment
+          <Button
+            icon="paper-plane-tilt"
+            onClick={handleSubmit}
+            disabled={!text.trim() || addMutation.isPending}
+          >
+            {addMutation.isPending ? 'Posting…' : 'Post comment'}
           </Button>
         </div>
       </div>
@@ -291,24 +410,25 @@ function CommentsPane({ comments, onAdd }: CommentsPaneProps) {
   );
 }
 
-interface NotesPaneProps {
-  notes: NoteItem[];
-  onAdd: (item: NoteItem) => void;
-}
-
-function NotesPane({ notes, onAdd }: NotesPaneProps) {
+function NotesPane({ contractId }: { contractId: number }) {
+  const listQuery = useContractNotes(contractId);
+  const addMutation = useAddNote(contractId);
   const [text, setText] = useState('');
+
+  const notes = listQuery.data ?? [];
 
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    onAdd({
-      id: crypto.randomUUID(),
-      author: ME_NAME,
-      text: trimmed,
-      when: new Date().toISOString(),
-    });
-    setText('');
+    addMutation.mutate(
+      {
+        type: 'Note',
+        noteDate: new Date().toISOString().slice(0, 10),
+        participants: null,
+        text: trimmed,
+      },
+      { onSuccess: () => setText('') },
+    );
   };
 
   return (
@@ -316,15 +436,27 @@ function NotesPane({ notes, onAdd }: NotesPaneProps) {
       <p className={styles.notesCaption}>
         Notes are private to procurement. They never appear on reminders or external messages.
       </p>
+      {listQuery.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t load notes. Refresh to try again.
+        </p>
+      ) : null}
+      {addMutation.error ? (
+        <p className={styles.docsError} role="alert">
+          Couldn&apos;t add note: {addMutation.error.message}
+        </p>
+      ) : null}
       <div className={styles.notesList}>
-        {notes.length === 0 ? (
+        {listQuery.isLoading ? (
+          <p className={styles.notesEmpty}>Loading notes…</p>
+        ) : notes.length === 0 ? (
           <p className={styles.notesEmpty}>No notes yet.</p>
         ) : (
           notes.map((note) => (
-            <div key={note.id} className={styles.note}>
+            <div key={note.contractNoteId} className={styles.note}>
               <div className={styles.noteHead}>
-                <strong>{note.author}</strong>
-                <span>{formatShortDate(note.when)}</span>
+                <strong>{note.authorName}</strong>
+                <span>{formatShortDate(note.createdAt)}</span>
               </div>
               <div className={styles.noteBody}>{note.text}</div>
             </div>
@@ -338,10 +470,15 @@ function NotesPane({ notes, onAdd }: NotesPaneProps) {
           onChange={(event) => setText(event.target.value)}
           placeholder="Procurement notes…"
           rows={3}
+          disabled={addMutation.isPending}
         />
         <div className={styles.notesComposerActions}>
-          <Button icon="plus" onClick={handleSubmit} disabled={!text.trim()}>
-            Add note
+          <Button
+            icon="plus"
+            onClick={handleSubmit}
+            disabled={!text.trim() || addMutation.isPending}
+          >
+            {addMutation.isPending ? 'Adding…' : 'Add note'}
           </Button>
         </div>
       </div>

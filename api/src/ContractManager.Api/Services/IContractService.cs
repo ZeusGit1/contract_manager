@@ -59,15 +59,17 @@ public class ContractService : IContractService
         var query = _access.ApplyListFilter(_db.Contracts.AsNoTracking());
 
         // view=master is Procurement-only — list filter already restricts by role.
-        // For "mine" (default Procurement landing), restrict to contracts where the signed-in
-        // Procurement owner has any lane in {InReview, Waiting}.
+        // "mine" = the caller is the Procurement owner on the contract, OR they own an
+        // active (InReview / Waiting) lane. Either association means the contract is
+        // "theirs" in day-to-day sense.
         if (string.Equals(filter.View, "mine", StringComparison.OrdinalIgnoreCase))
         {
             var oid = _userContext.UserId ?? Guid.Empty;
             query = query.Where(c =>
                 c.OverallStatus == OverallStatus.Active
-                && c.Lanes.Any(l => l.OwnerUserId == oid
-                    && (l.Status == LaneStatus.InReview || l.Status == LaneStatus.Waiting)));
+                && (c.ProcurementOwnerUserId == oid
+                    || c.Lanes.Any(l => l.OwnerUserId == oid
+                        && (l.Status == LaneStatus.InReview || l.Status == LaneStatus.Waiting))));
         }
         else if (string.Equals(filter.View, "submissions", StringComparison.OrdinalIgnoreCase))
         {
@@ -367,10 +369,22 @@ public class ContractService : IContractService
             throw new UnauthorizedAccessException("Only Procurement can reassign the Procurement owner.");
         }
 
-        var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
+        var contract = await _db.Contracts
+            .Include(c => c.Lanes)
+            .FirstOrDefaultAsync(c => c.ContractId == contractId, cancellationToken).ConfigureAwait(false);
         if (contract is null) return false;
 
         contract.ProcurementOwnerUserId = request.ProcurementOwnerUserId;
+        // Cascade to the Procurement lane so both the contract-level owner and the
+        // "waiting on procurement" lane point at the same person. Users navigate by
+        // both — the dashboard's "mine" tile now includes procurement-owned contracts,
+        // and the lane pill on the row still reads the right name.
+        var procurementLane = contract.Lanes.FirstOrDefault(l => l.LaneId == LaneId.Procurement);
+        if (procurementLane is not null)
+        {
+            procurementLane.OwnerUserId = request.ProcurementOwnerUserId;
+            procurementLane.LastUpdated = _clock.UtcNow;
+        }
         _activity.Record(contract, ActivityType.OwnerReassigned,
             request.ProcurementOwnerUserId.HasValue
                 ? $"Procurement owner reassigned."

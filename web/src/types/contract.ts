@@ -1,6 +1,9 @@
 /** Mirrors the API enums in api/src/ContractManager.Api/Domain/Enums.cs.
  *  Values are the string names (the API serialises enums via JsonStringEnumConverter). */
 
+/** Kept for backwards compatibility. Legacy linear-status vocabulary from the v1 model —
+ *  the v2 API models overall status + independent lane statuses instead. Screens that still
+ *  reference this should migrate to OverallStatusApi + LaneStatusApi (below). */
 export type ContractStatus =
   | 'InProcess'
   | 'WithVendor'
@@ -15,6 +18,34 @@ export type ContractStatus =
   | 'Canceled'
   | 'Expired'
   | 'Terminated';
+
+/** v2 API overall status — a whole contract is Active, Completed, or Canceled. */
+export type OverallStatusApi = 'Active' | 'Completed' | 'Canceled';
+
+/** v2 API priority. */
+export type PriorityApi = 'Low' | 'Medium' | 'High' | 'Critical';
+
+/** The nine canonical lanes — every contract has one row per LaneIdApi. */
+export type LaneIdApi =
+  | 'Procurement'
+  | 'Legal'
+  | 'InfoSec'
+  | 'Privacy'
+  | 'GCO'
+  | 'Vendor'
+  | 'Requester'
+  | 'Signature'
+  | 'Filed';
+
+/** Per-lane status. Active = {InReview, Waiting}. */
+export type LaneStatusApi =
+  | 'NotStarted'
+  | 'InReview'
+  | 'Waiting'
+  | 'Approved'
+  | 'Canceled'
+  | 'NA'
+  | 'Complete';
 
 export type Category = 'Event' | 'Facilities' | 'IT';
 

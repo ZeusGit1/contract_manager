@@ -1,32 +1,41 @@
-import { PROCUREMENT_OWNERS, type Phase1Contract } from '@/types/phase1';
+import type { Phase1Contract } from '@/types/phase1';
+import type { ContractDetailDto } from '@/types/api';
 import { formatUsd } from '@/lib/formatters';
 import { Fact, RailCard } from './DetailRail';
-import { formatTerm, type ActivityItem } from './contractDetail.helpers';
+import { formatTerm } from './contractDetail.helpers';
+import { useUsersList } from '../hooks';
 import styles from './ContractDetail.module.css';
 
 interface DetailRailColumnProps {
   contract: Phase1Contract;
+  apiDetail: ContractDetailDto;
   overallStatus: Phase1Contract['overallStatus'];
   onOverallStatusChange: (value: Phase1Contract['overallStatus']) => void;
   priority: Phase1Contract['priority'];
   onPriorityChange: (value: Phase1Contract['priority']) => void;
+  /** Display-only owner label — the mutation callback is called with the picked userId. */
   owner: string;
-  onOwnerChange: (value: string) => void;
-  onOwnerActivity: (event: ActivityItem) => void;
+  onOwnerChange: (userId: string | null) => void;
+  isBusy?: boolean;
 }
 
 /** Contract-detail right rail — status, priority, owner controls + key facts.
- *  Four RailCards composed in one aside so the main screen stays composition-focused. */
+ *  Four RailCards composed in one aside so the main screen stays composition-focused.
+ *  The owner picker sources firm users from GET /api/users and PATCHes the picked
+ *  Entra oid GUID via /api/contracts/{id}/owner. */
 export function DetailRailColumn({
   contract,
+  apiDetail,
   overallStatus,
   onOverallStatusChange,
   priority,
   onPriorityChange,
-  owner,
   onOwnerChange,
-  onOwnerActivity,
+  isBusy,
 }: DetailRailColumnProps) {
+  const usersQuery = useUsersList();
+  const currentOwnerId = apiDetail.procurementOwnerUserId ?? '';
+
   return (
     <aside className={styles.rail}>
       <RailCard title="Overall status">
@@ -36,6 +45,7 @@ export function DetailRailColumn({
             onOverallStatusChange(event.target.value as Phase1Contract['overallStatus'])
           }
           className={styles.railSelect}
+          disabled={isBusy}
         >
           <option value="active">Active</option>
           <option value="completed">Mark complete</option>
@@ -51,6 +61,7 @@ export function DetailRailColumn({
           value={priority}
           onChange={(event) => onPriorityChange(event.target.value as Phase1Contract['priority'])}
           className={styles.railSelect}
+          disabled={isBusy}
         >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
@@ -62,25 +73,27 @@ export function DetailRailColumn({
         <label>
           <span className={styles.railFieldLabel}>Reassign owner</span>
           <select
-            value={owner}
+            value={currentOwnerId}
             onChange={(event) => {
               const next = event.target.value;
-              onOwnerChange(next);
-              onOwnerActivity({
-                icon: 'user-switch',
-                text: `Procurement owner reassigned to ${next}`,
-                when: 'Just now',
-              });
+              onOwnerChange(next === '' ? null : next);
             }}
             className={styles.railSelect}
+            disabled={isBusy || usersQuery.isLoading}
           >
-            {PROCUREMENT_OWNERS.map((o) => (
-              <option key={o.name} value={o.name}>
-                {o.name}
+            <option value="">Unassigned</option>
+            {(usersQuery.data ?? []).map((user) => (
+              <option key={user.userId} value={user.userId}>
+                {user.displayName}
               </option>
             ))}
           </select>
         </label>
+        {usersQuery.error ? (
+          <p className={styles.railCaption} role="alert">
+            Couldn&apos;t load users. Try refreshing.
+          </p>
+        ) : null}
       </RailCard>
       <RailCard title="Key facts">
         <Fact label="Requester" value={contract.requester} />

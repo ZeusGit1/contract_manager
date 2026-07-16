@@ -54,6 +54,9 @@ artifacts/docs/dev/reviews/.last-clean-run.json
 
 # Demo launcher logs (demo-start.cmd / demo-start.ps1)
 .demo-logs/
+# Dev-only filesystem-backed attachment store (FilesystemAttachmentStore)
+.demo-attachments/
+api/src/ContractManager.Api/.demo-attachments/
 
 # Dev-only auth bypass scaffolding — local demo only, MUST NOT ship to any
 # environment with real Entra wiring. These files short-circuit token
