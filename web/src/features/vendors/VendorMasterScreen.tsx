@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/mws/Badge';
 import { Button } from '@/mws/Button';
 import { TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
-import { apiJson } from '@/lib/apiClient';
+import { api, apiJson, ApiError } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import type { PagedResult, VendorRowDto, VendorSummaryDto } from '@/types/api';
 import type { PreferredStatus, VendorType } from '@/types/contract';
@@ -32,8 +32,15 @@ interface CreateVendorPayload {
   primaryContactEmail?: string | null;
 }
 
-interface UpdateVendorStatusPayload {
-  preferredStatus: PreferredStatus;
+interface UpdateVendorPayload {
+  name?: string;
+  preferredStatus?: PreferredStatus;
+  primaryContactName?: string | null;
+  primaryContactEmail?: string | null;
+  primaryContactPhone?: string | null;
+  primaryContactRole?: string | null;
+  location?: string | null;
+  notes?: string | null;
 }
 
 export function VendorMasterScreen() {
@@ -162,19 +169,9 @@ export function VendorMasterScreen() {
 }
 
 function VendorModal({ vendorId, onClose }: { vendorId: number; onClose: () => void }) {
-  const queryClient = useQueryClient();
   const detailQuery = useQuery<VendorSummaryDto>({
     queryKey: queryKeys.vendors.detail(vendorId),
     queryFn: () => apiJson<VendorSummaryDto>(`/api/vendors/${vendorId}`),
-  });
-
-  const updateStatus = useMutation<void, Error, UpdateVendorStatusPayload>({
-    mutationFn: (payload) =>
-      apiJson<void>(`/api/vendors/${vendorId}`, { method: 'PATCH', body: payload }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.detail(vendorId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all });
-    },
   });
 
   return (
@@ -196,73 +193,276 @@ function VendorModal({ vendorId, onClose }: { vendorId: number; onClose: () => v
         ) : detailQuery.error || !detailQuery.data ? (
           <p>Couldn&apos;t load this vendor.</p>
         ) : (
-          <>
-            <div className={styles.modalStatus}>
-              <Badge status={STATUS_BADGE[detailQuery.data.preferredStatus]}>
-                {detailQuery.data.preferredStatus}
-              </Badge>
-              <span>{detailQuery.data.type}</span>
-            </div>
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Vendor status</span>
-              <select
-                value={detailQuery.data.preferredStatus}
-                disabled={updateStatus.isPending}
-                onChange={(event) =>
-                  updateStatus.mutate({
-                    preferredStatus: event.target.value as PreferredStatus,
-                  })
-                }
-                className={styles.fieldInput}
-              >
-                {PREFERRED_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <span className={styles.fieldHint}>
-                Procurement updates this as the vendor relationship evolves.
-              </span>
-              {updateStatus.error ? (
-                <span className={styles.fieldError}>
-                  Couldn&apos;t save the new status. Try again.
-                </span>
-              ) : null}
-            </label>
-            {detailQuery.data.notes ? <p>{detailQuery.data.notes}</p> : null}
-            <dl className={styles.modalFacts}>
-              <Fact label="Primary contact" value={detailQuery.data.primaryContactName} />
-              <Fact label="Email" value={detailQuery.data.primaryContactEmail} />
-              <Fact label="Phone" value={detailQuery.data.primaryContactPhone} />
-              <Fact label="Location" value={detailQuery.data.location} />
-            </dl>
-            <h3 className={styles.contractsHeading}>
-              Contracts ({detailQuery.data.contracts.length})
-            </h3>
-            <ul className={styles.contractList}>
-              {detailQuery.data.contracts.map((contract) => (
-                <li key={contract.contractId}>
-                  <a href={`/contracts/${contract.contractId}`}>{contract.title}</a>
-                  <span className={styles.contractMeta}>
-                    {contract.contractNumber} · {contract.category}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
+          // Keying on the vendor's Updated marker means each fresh copy remounts the
+          // form, seeding local state from props — no set-state-in-effect anti-pattern.
+          <VendorEditForm
+            key={`${detailQuery.data.vendorId}:${detailQuery.data.name}:${detailQuery.data.preferredStatus}`}
+            vendor={detailQuery.data}
+            vendorId={vendorId}
+            onClose={onClose}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string | null }) {
+/**
+ * In-modal edit form for a vendor. Reads seed values from the loaded summary; PATCH-only
+ * sends fields the user actually touched. Also carries a Delete affordance — the server
+ * returns 409 if the vendor still has contracts, which we surface as an inline message.
+ */
+function VendorEditForm({
+  vendor,
+  vendorId,
+  onClose,
+}: {
+  vendor: VendorSummaryDto;
+  vendorId: number;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(vendor.name);
+  const [preferredStatus, setPreferredStatus] = useState<PreferredStatus>(vendor.preferredStatus);
+  const [primaryContactName, setPrimaryContactName] = useState(vendor.primaryContactName ?? '');
+  const [primaryContactEmail, setPrimaryContactEmail] = useState(vendor.primaryContactEmail ?? '');
+  const [primaryContactPhone, setPrimaryContactPhone] = useState(vendor.primaryContactPhone ?? '');
+  const [primaryContactRole, setPrimaryContactRole] = useState(vendor.primaryContactRole ?? '');
+  const [location, setLocation] = useState(vendor.location ?? '');
+  const [notes, setNotes] = useState(vendor.notes ?? '');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const updateVendor = useMutation<void, ApiError, UpdateVendorPayload>({
+    mutationFn: async (payload) => {
+      await api(`/api/vendors/${vendorId}`, { method: 'PATCH', body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.detail(vendorId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all });
+    },
+  });
+
+  const deleteVendor = useMutation<void, ApiError, void>({
+    mutationFn: async () => {
+      await api(`/api/vendors/${vendorId}`, { method: 'DELETE' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all });
+      onClose();
+    },
+  });
+
+  const handleSave = (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaveError(null);
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setSaveError('Vendor name is required.');
+      return;
+    }
+    // PATCH only sends fields that differ from the loaded record — avoids sending
+    // "empty string wins" for fields the user didn't touch.
+    const payload: UpdateVendorPayload = {};
+    if (trimmedName !== vendor.name) payload.name = trimmedName;
+    if (preferredStatus !== vendor.preferredStatus) payload.preferredStatus = preferredStatus;
+    if (primaryContactName !== (vendor.primaryContactName ?? '')) {
+      payload.primaryContactName = primaryContactName || null;
+    }
+    if (primaryContactEmail !== (vendor.primaryContactEmail ?? '')) {
+      payload.primaryContactEmail = primaryContactEmail || null;
+    }
+    if (primaryContactPhone !== (vendor.primaryContactPhone ?? '')) {
+      payload.primaryContactPhone = primaryContactPhone || null;
+    }
+    if (primaryContactRole !== (vendor.primaryContactRole ?? '')) {
+      payload.primaryContactRole = primaryContactRole || null;
+    }
+    if (location !== (vendor.location ?? '')) payload.location = location || null;
+    if (notes !== (vendor.notes ?? '')) payload.notes = notes || null;
+
+    if (Object.keys(payload).length === 0) {
+      // Nothing changed — treat as a no-op close.
+      onClose();
+      return;
+    }
+    updateVendor.mutate(payload, {
+      onSuccess: () => onClose(),
+      onError: (err) => setSaveError(err.message),
+    });
+  };
+
+  const handleDelete = () => {
+    setDeleteError(null);
+    deleteVendor.mutate(undefined, {
+      onError: (err) => setDeleteError(err.message),
+    });
+  };
+
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value ?? '—'}</dd>
-    </div>
+    <form onSubmit={handleSave}>
+      <div className={styles.modalStatus}>
+        <Badge status={STATUS_BADGE[vendor.preferredStatus]}>{vendor.preferredStatus}</Badge>
+        <span>{vendor.type}</span>
+      </div>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Vendor name</span>
+        <input
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Vendor status</span>
+        <select
+          value={preferredStatus}
+          onChange={(event) => setPreferredStatus(event.target.value as PreferredStatus)}
+          className={styles.fieldInput}
+        >
+          {PREFERRED_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Primary contact <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <input
+          type="text"
+          value={primaryContactName}
+          onChange={(event) => setPrimaryContactName(event.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Contact email <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <input
+          type="email"
+          value={primaryContactEmail}
+          onChange={(event) => setPrimaryContactEmail(event.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Contact phone <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <input
+          type="tel"
+          value={primaryContactPhone}
+          onChange={(event) => setPrimaryContactPhone(event.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Contact role <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <input
+          type="text"
+          value={primaryContactRole}
+          onChange={(event) => setPrimaryContactRole(event.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Location <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <input
+          type="text"
+          value={location}
+          onChange={(event) => setLocation(event.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>
+          Notes <span className={styles.fieldOptional}>(optional)</span>
+        </span>
+        <textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={3}
+          className={styles.fieldInput}
+        />
+      </label>
+
+      {saveError ? <p className={styles.fieldError}>{saveError}</p> : null}
+      {deleteError ? <p className={styles.fieldError}>{deleteError}</p> : null}
+
+      {vendor.contracts.length > 0 ? (
+        <>
+          <h3 className={styles.contractsHeading}>Contracts ({vendor.contracts.length})</h3>
+          <ul className={styles.contractList}>
+            {vendor.contracts.map((contract) => (
+              <li key={contract.contractId}>
+                <a href={`/contracts/${contract.contractId}`}>{contract.title}</a>
+                <span className={styles.contractMeta}>
+                  {contract.contractNumber} · {contract.category}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      <div className={styles.modalActions}>
+        {confirmingDelete ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setConfirmingDelete(false)}
+              disabled={deleteVendor.isPending}
+            >
+              Keep
+            </Button>
+            <Button
+              type="button"
+              icon="trash"
+              onClick={handleDelete}
+              disabled={deleteVendor.isPending}
+            >
+              {deleteVendor.isPending ? 'Deleting…' : 'Confirm delete'}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              icon="trash"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={vendor.contracts.length > 0}
+              title={
+                vendor.contracts.length > 0
+                  ? 'Vendor has contracts — reassign or delete them first.'
+                  : undefined
+              }
+            >
+              Delete vendor
+            </Button>
+            <div style={{ flex: 1 }} />
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateVendor.isPending}>
+              {updateVendor.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </>
+        )}
+      </div>
+    </form>
   );
 }
 

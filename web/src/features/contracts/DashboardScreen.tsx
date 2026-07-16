@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Button } from '@/mws/Button';
-import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
+import { SortHeader, TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
 import {
-  activeContracts,
+  apiRowToPhase1Contract,
   daysFromTodayLocal,
   isContractOverdue,
   isDueThisWeek,
@@ -12,9 +12,10 @@ import {
   needsAction,
   nextActionDue,
 } from '@/lib/phase1Data';
-import { LANE_DEFS, ME, isLaneOpen, type Phase1Contract } from '@/types/phase1';
+import { LANE_DEFS, isLaneOpen, type Phase1Contract } from '@/types/phase1';
 import { formatShortDate } from '@/lib/formatters';
 import { downloadContractsCsv } from '@/lib/exportCsv';
+import { useContractList } from './hooks';
 
 import styles from './Phase1.module.css';
 
@@ -61,10 +62,17 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
     setParams(next, { replace: true });
   };
 
+  // Server-side view scoping: 'mine' filters to the caller's owned contracts,
+  // 'master' returns everything the caller can see.
+  const listQuery = useContractList({ view });
+  const isLoading = listQuery.isLoading;
+
   const base = useMemo<Phase1Contract[]>(() => {
-    const rows = activeContracts();
-    return view === 'mine' ? rows.filter((c) => c.owner === ME.name) : rows;
-  }, [view]);
+    const rows = (listQuery.data?.items ?? [])
+      .map(apiRowToPhase1Contract)
+      .filter((c) => c.overallStatus === 'active');
+    return rows;
+  }, [listQuery.data]);
 
   const counts = useMemo(
     () => ({
@@ -166,8 +174,7 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
           <i className="ph ph-check-circle" aria-hidden="true" />
           <span>
             <strong>Contract submitted.</strong> {submittedNumber} was created and routed for
-            review. It won&apos;t appear in this prototype&apos;s synthetic data — open the API or
-            backend to confirm.
+            review.
           </span>
           <button
             type="button"
@@ -180,14 +187,12 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
         </div>
       ) : null}
 
-      <div className={styles.banner}>
-        <i className="ph ph-info" aria-hidden="true" />
-        <span>
-          <strong>Phase 1 prototype.</strong> Synthetic data. This tool <em>tracks</em> reviews — it
-          does not replace the Tuesday / Thursday risk-review calls where InfoSec, Privacy, GCO, and
-          Legal give approvals verbally. Procurement records the outcomes here.
-        </span>
-      </div>
+      {listQuery.error ? (
+        <div className={styles.banner} role="alert">
+          <i className="ph ph-warning-circle" aria-hidden="true" />
+          <span>Couldn&apos;t load contracts. Refresh to try again.</span>
+        </div>
+      ) : null}
 
       <div className={styles.tileRow} role="group" aria-label="Filter by what needs attention">
         {TILES.map((t) => (
@@ -227,8 +232,9 @@ export function DashboardScreen({ view = 'mine' }: DashboardScreenProps) {
         rows={filtered}
         sort={sort}
         onSort={onSort}
-        onOpen={(num) => navigate(`/contracts/${num}`)}
+        onOpen={(id) => navigate(`/contracts/${id}`)}
         onClearFilters={hasActiveFilters ? clearFilters : undefined}
+        isLoading={isLoading}
       />
     </div>
   );
@@ -269,11 +275,19 @@ interface ContractTableProps {
   rows: Phase1Contract[];
   sort: { key: SortKey; dir: SortDir };
   onSort: (key: SortKey) => void;
-  onOpen: (num: string) => void;
+  onOpen: (id: number | string) => void;
   onClearFilters?: () => void;
+  isLoading?: boolean;
 }
 
-function ContractTable({ rows, sort, onSort, onOpen, onClearFilters }: ContractTableProps) {
+function ContractTable({
+  rows,
+  sort,
+  onSort,
+  onOpen,
+  onClearFilters,
+  isLoading,
+}: ContractTableProps) {
   const headers: { key: SortKey; label: string }[] = [
     { key: 'title', label: 'Contract' },
     { key: 'vendor', label: 'Vendor' },
@@ -304,19 +318,21 @@ function ContractTable({ rows, sort, onSort, onOpen, onClearFilters }: ContractT
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
+        {isLoading ? (
+          <TableSkeletonRows columnCount={columnCount} />
+        ) : rows.length === 0 ? (
           <TableEmptyRow colSpan={columnCount} onClearFilters={onClearFilters}>
             {onClearFilters ? 'No contracts match your filters.' : 'No contracts match this view.'}
           </TableEmptyRow>
         ) : (
-          rows.map((c) => <ContractRow key={c.num} c={c} onOpen={onOpen} />)
+          rows.map((c) => <ContractRow key={c.contractId ?? c.num} c={c} onOpen={onOpen} />)
         )}
       </tbody>
     </TableShell>
   );
 }
 
-function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (num: string) => void }) {
+function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (id: number | string) => void }) {
   const needs = needsAction(c);
   const closed = c.overallStatus !== 'active';
   const clsList = [
@@ -333,15 +349,16 @@ function ContractRow({ c, onOpen }: { c: Phase1Contract; onOpen: (num: string) =
   // Phase 1 open question: "due soon" thresholds vary by contract — Lisa to confirm.
   // Until then, we only flag overdue (red). The date itself is always shown.
   const overall = overallStateLabel(c);
+  const detailKey = c.contractId ?? c.num;
 
-  const onOpenStable = () => onOpen(c.num);
+  const onOpenStable = () => onOpen(detailKey);
 
   return (
     <tr className={clsList} onClick={onOpenStable}>
       <td>
         <div className={styles.contractName}>
           <Link
-            to={`/contracts/${c.num}`}
+            to={`/contracts/${detailKey}`}
             onClick={(event) => event.stopPropagation()}
             className={styles.contractLink}
           >

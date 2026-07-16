@@ -72,4 +72,19 @@ public class VendorsController : ControllerBase
         var updated = await _service.UpdateAsync(vendorId, request, cancellationToken).ConfigureAwait(false);
         return updated ? NoContent() : NotFound();
     }
+
+    [HttpDelete("{vendorId:int}")]
+    [Authorize(Roles = AppRoles.Procurement)]
+    public async Task<IActionResult> Delete(int vendorId, CancellationToken cancellationToken)
+    {
+        var result = await _service.DeleteAsync(vendorId, cancellationToken).ConfigureAwait(false);
+        return result switch
+        {
+            null => NotFound(),
+            false => Problem(
+                detail: "Vendor still has contracts. Reassign or delete the contracts first.",
+                statusCode: StatusCodes.Status409Conflict),
+            true => NoContent(),
+        };
+    }
 }

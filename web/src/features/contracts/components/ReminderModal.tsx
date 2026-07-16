@@ -15,11 +15,12 @@ interface ReminderModalProps {
   lanes: ContractLane[];
   onClose: () => void;
   onSend: (laneId: LaneId) => void;
+  isSending?: boolean;
 }
 
 /** Reminder modal — pick an external lane (vendor/requester/signature) and send.
  *  Internal reviewers are handled on the risk-review calls, not from here. */
-export function ReminderModal({ contract, lanes, onClose, onSend }: ReminderModalProps) {
+export function ReminderModal({ contract, lanes, onClose, onSend, isSending }: ReminderModalProps) {
   const targets = lanes.filter(
     (lane) =>
       isLaneOpen(lane) &&
@@ -84,10 +85,10 @@ export function ReminderModal({ contract, lanes, onClose, onSend }: ReminderModa
             {targets.length > 0 ? (
               <Button
                 icon="paper-plane-tilt"
-                disabled={!selected}
+                disabled={!selected || isSending}
                 onClick={() => selected && onSend(selected)}
               >
-                Send reminder
+                {isSending ? 'Sending…' : 'Send reminder'}
               </Button>
             ) : null}
           </div>

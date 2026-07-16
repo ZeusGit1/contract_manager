@@ -65,6 +65,9 @@ export interface ITFields {
 }
 
 export interface Phase1Contract {
+  /** API integer contract id — used for the detail route. Optional so existing seed data
+   *  still compiles; adapted rows from the API always carry it. */
+  contractId?: number;
   num: string;
   title: string;
   vendor: string;

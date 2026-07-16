@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Button } from '@/mws/Button';
-import { SortHeader, TableEmptyRow, TableShell } from '@/mws/Table';
-import { PHASE1_CONTRACTS, nextActionDue, daysFromTodayLocal } from '@/lib/phase1Data';
-import { ME, type Phase1Contract } from '@/types/phase1';
+import { SortHeader, TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
+import { apiRowToPhase1Contract, nextActionDue, daysFromTodayLocal } from '@/lib/phase1Data';
+import type { Phase1Contract } from '@/types/phase1';
 import { formatShortDate, formatUsd } from '@/lib/formatters';
+import { useContractList } from './hooks';
 
 import styles from './Phase1.module.css';
 
@@ -30,11 +31,13 @@ const HEADERS: { key: SortKey; label: string }[] = [
 export function MySubmissionsScreen() {
   const navigate = useNavigate();
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'nextDue', dir: 'asc' });
+  // Server-side view scoping — 'submissions' returns contracts where the caller is the requester.
+  const listQuery = useContractList({ view: 'submissions' });
 
   const rows = useMemo(() => {
-    const base = PHASE1_CONTRACTS.filter((c) => c.requester === ME.name || c.owner === ME.name);
+    const base = (listQuery.data?.items ?? []).map(apiRowToPhase1Contract);
     return sortRows(base, sort);
-  }, [sort]);
+  }, [listQuery.data, sort]);
 
   const onSort = (key: SortKey) =>
     setSort((prev) =>
@@ -54,6 +57,12 @@ export function MySubmissionsScreen() {
           New contract
         </Button>
       </header>
+      {listQuery.error ? (
+        <div className={styles.banner} role="alert">
+          <i className="ph ph-warning-circle" aria-hidden="true" />
+          <span>Couldn&apos;t load your submissions. Refresh to try again.</span>
+        </div>
+      ) : null}
 
       <TableShell minWidth={720}>
         <thead>
@@ -72,7 +81,9 @@ export function MySubmissionsScreen() {
           </tr>
         </thead>
         <tbody>
-          {rows.length === 0 ? (
+          {listQuery.isLoading ? (
+            <TableSkeletonRows columnCount={HEADERS.length} />
+          ) : rows.length === 0 ? (
             <TableEmptyRow colSpan={HEADERS.length}>
               You haven&rsquo;t submitted any contracts yet.
             </TableEmptyRow>
@@ -81,16 +92,17 @@ export function MySubmissionsScreen() {
               const next = nextActionDue(c);
               const days = daysFromTodayLocal(next);
               const overdue = days != null && days < 0;
+              const detailKey = c.contractId ?? c.num;
               return (
                 <tr
-                  key={c.num}
+                  key={detailKey}
                   className={styles.bodyRow}
-                  onClick={() => navigate(`/contracts/${c.num}`)}
+                  onClick={() => navigate(`/contracts/${detailKey}`)}
                 >
                   <td>
                     <div className={styles.contractName}>
                       <Link
-                        to={`/contracts/${c.num}`}
+                        to={`/contracts/${detailKey}`}
                         onClick={(event) => event.stopPropagation()}
                         className={styles.contractLink}
                       >

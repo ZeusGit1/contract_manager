@@ -1,18 +1,27 @@
-import { PHASE1_CONTRACTS } from '@/lib/phase1Data';
-import { ME, PROCUREMENT_OWNERS, type Phase1Contract } from '@/types/phase1';
+import { useMemo } from 'react';
+
+import { apiRowToPhase1Contract } from '@/lib/phase1Data';
+import type { Phase1Contract } from '@/types/phase1';
 import { formatFullDate } from '@/lib/formatters';
 import { Card } from '@/mws/Card';
 import { Kpi } from '@/mws/Kpi';
+import { useContractList } from './hooks';
 
 import styles from './Phase1.module.css';
 
 export function ReportsScreen() {
-  const all = PHASE1_CONTRACTS;
+  // Server-side view scoping — 'master' returns everything the caller can see across the team.
+  const listQuery = useContractList({ view: 'master' });
+
+  const all = useMemo(
+    () => (listQuery.data?.items ?? []).map(apiRowToPhase1Contract),
+    [listQuery.data],
+  );
+
   const active = all.filter((c) => c.overallStatus === 'active');
   const completed = all.filter((c) => c.overallStatus === 'completed');
   const canceled = all.filter((c) => c.overallStatus === 'canceled');
   const reviewedYTD = active.length + completed.length + canceled.length;
-  const myActive = active.filter((c) => c.owner === ME.name).length;
 
   const byCategory = (rows: Phase1Contract[]) => {
     const out: Record<string, number> = { Event: 0, Facilities: 0, IT: 0 };
@@ -24,13 +33,22 @@ export function ReportsScreen() {
 
   const allByCat = byCategory(all);
   const activeByCat = byCategory(active);
-  const byOwner = PROCUREMENT_OWNERS.map((o) => ({
-    owner: o,
-    active: active.filter((c) => c.owner === o.name).length,
-    completed: completed.filter((c) => c.owner === o.name).length,
-  }));
 
-  const maxOwner = Math.max(1, ...byOwner.map((b) => b.active));
+  const owners = useMemo(() => {
+    const buckets = new Map<string, { active: number; completed: number }>();
+    for (const c of all) {
+      const key = c.owner || 'Unassigned';
+      const bucket = buckets.get(key) ?? { active: 0, completed: 0 };
+      if (c.overallStatus === 'active') bucket.active++;
+      else if (c.overallStatus === 'completed') bucket.completed++;
+      buckets.set(key, bucket);
+    }
+    return Array.from(buckets.entries())
+      .map(([name, counts]) => ({ name, ...counts }))
+      .sort((a, b) => b.active - a.active);
+  }, [all]);
+
+  const maxOwner = Math.max(1, ...owners.map((o) => o.active));
   const maxCat = Math.max(1, ...Object.values(activeByCat));
 
   const now = new Date();
@@ -45,6 +63,13 @@ export function ReportsScreen() {
         </div>
       </header>
 
+      {listQuery.error ? (
+        <div className={styles.banner} role="alert">
+          <i className="ph ph-warning-circle" aria-hidden="true" />
+          <span>Couldn&apos;t load reports. Refresh to try again.</span>
+        </div>
+      ) : null}
+
       <div
         style={{
           display: 'grid',
@@ -58,7 +83,6 @@ export function ReportsScreen() {
           value={active.length}
           sub="Push back on rush requests with this"
         />
-        <Kpi label="My active" value={myActive} sub={ME.name} />
         <Kpi label="Completed YTD" value={completed.length} />
         <Kpi label="Canceled YTD" value={canceled.length} />
       </div>
@@ -76,14 +100,11 @@ export function ReportsScreen() {
           <Bar label="IT" value={activeByCat.IT} max={maxCat} />
         </Card>
         <Card eyebrow="Active by procurement owner">
-          {byOwner.map((b) => (
-            <Bar
-              key={b.owner.name}
-              label={`${b.owner.name}${b.owner.isMe ? ' (you)' : ''}`}
-              value={b.active}
-              max={maxOwner}
-            />
-          ))}
+          {owners.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No active contracts yet.</p>
+          ) : (
+            owners.map((o) => <Bar key={o.name} label={o.name} value={o.active} max={maxOwner} />)
+          )}
         </Card>
       </div>
 

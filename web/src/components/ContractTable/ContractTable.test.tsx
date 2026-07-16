@@ -9,18 +9,25 @@ const ROW: ContractRowDto = {
   contractNumber: 'CN-2026-0042',
   title: 'Adobe Creative Cloud renewal',
   category: 'IT',
-  status: 'OutForSignature',
-  vendorName: 'Adobe Inc.',
+  overallStatus: 'Active',
+  priority: 'High',
   vendorId: 99,
-  assignedReviewerName: 'Lisa Farkas',
-  assignedReviewerTeam: 'Procurement',
-  assignedReviewerUserId: '11111111-1111-1111-1111-111111111111',
+  vendorName: 'Adobe Inc.',
+  requesterUserId: '00000000-0000-0000-0000-000000000001',
+  requesterName: 'Frank Moss',
+  procurementOwnerUserId: '00000000-0000-0000-0000-000000000002',
+  procurementOwnerName: 'Lisa Farkas',
   totalCostUsd: 218000,
-  termEndDate: '2027-07-31',
+  termStartDate: '2026-08-01T00:00:00Z',
+  termEndDate: '2027-07-31T00:00:00Z',
+  submittedAt: '2026-06-01T00:00:00Z',
   lastActionAt: '2026-06-25T00:00:00Z',
-  nextActionDueAt: '2026-07-15T00:00:00Z',
-  needsAttention: false,
-  attentionReason: null,
+  activeLaneCount: 3,
+  lanes: [
+    { laneId: 'Procurement', status: 'InReview', ownerName: 'Lisa Farkas', dueDate: null },
+    { laneId: 'Legal', status: 'Approved', ownerName: 'Outside counsel', dueDate: null },
+    { laneId: 'InfoSec', status: 'Waiting', ownerName: 'Priya Nair', dueDate: null },
+  ],
 };
 
 describe('ContractTable', () => {
@@ -51,7 +58,7 @@ describe('ContractTable', () => {
     expect(getByText('Nothing here yet.')).toBeInTheDocument();
   });
 
-  it('ContractTable — populated rows — renders the contract title and status badge', () => {
+  it('ContractTable — populated rows — renders title, priority, and overall status', () => {
     // Arrange + Act
     const { getByText } = render(
       <MemoryRouter>
@@ -59,9 +66,10 @@ describe('ContractTable', () => {
       </MemoryRouter>,
     );
 
-    // Assert — the contract row hits the table; status maps to "Out for signature".
+    // Assert — contract title, priority label, and overall-status badge render.
     expect(getByText(ROW.title)).toBeInTheDocument();
-    expect(getByText('Out for signature')).toBeInTheDocument();
+    expect(getByText('High')).toBeInTheDocument();
+    expect(getByText('Active')).toBeInTheDocument();
   });
 
   it('ContractTable — accessibility — no axe violations on populated state', async () => {

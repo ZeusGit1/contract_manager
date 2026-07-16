@@ -17,6 +17,13 @@ public interface IVendorService
     Task<(VendorSummaryDto Vendor, Vendor? DuplicateMatch)> CreateAsync(CreateVendorRequest request, CancellationToken cancellationToken);
 
     Task<bool> UpdateAsync(int vendorId, UpdateVendorRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Soft-delete a vendor. Refuses if the vendor still has non-deleted contracts —
+    /// callers must reassign or delete those first. Returns null when the vendor doesn't
+    /// exist, true on success, false when the vendor has live contracts.
+    /// </summary>
+    Task<bool?> DeleteAsync(int vendorId, CancellationToken cancellationToken);
 }
 
 public class VendorService : IVendorService
@@ -156,6 +163,25 @@ public class VendorService : IVendorService
         if (request.Location is not null) vendor.Location = request.Location;
         if (request.Notes is not null) vendor.Notes = request.Notes;
 
+        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    public async Task<bool?> DeleteAsync(int vendorId, CancellationToken cancellationToken)
+    {
+        var vendor = await _db.Vendors.FindAsync(new object[] { vendorId }, cancellationToken).ConfigureAwait(false);
+        if (vendor is null) return null;
+
+        // Refuse to delete a vendor that still has live contracts — the caller must move
+        // or delete those first. This keeps referential integrity clean without needing
+        // FK cascade rules that would silently orphan contract history.
+        var liveContractCount = await _db.Contracts
+            .CountAsync(c => c.VendorId == vendorId, cancellationToken)
+            .ConfigureAwait(false);
+        if (liveContractCount > 0) return false;
+
+        vendor.IsDeleted = true;
+        vendor.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }

@@ -1,23 +1,23 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Badge } from '@/mws/Badge';
+import { Badge, type BadgeStatus } from '@/mws/Badge';
 import { SortHeader, TableEmptyRow, TableShell, TableSkeletonRows } from '@/mws/Table';
 import { formatShortDate, formatUsd } from '@/lib/formatters';
-import { statusInfo } from '@/lib/statusMap';
+import { OVERALL_STATUS_LABEL, PRIORITY_LABEL } from '@/lib/laneMap';
 import type { ContractRowDto } from '@/types/api';
+import type { OverallStatusApi, PriorityApi } from '@/types/contract';
 import styles from './ContractTable.module.css';
 
 type ColumnKey =
-  | 'flag'
   | 'contract'
   | 'vendor'
   | 'category'
-  | 'status'
-  | 'reviewer'
+  | 'priority'
+  | 'overall'
+  | 'owner'
   | 'value'
   | 'expires'
-  | 'lastAction'
-  | 'nextDue';
+  | 'submitted';
 
 interface Column {
   key: ColumnKey;
@@ -26,27 +26,26 @@ interface Column {
 }
 
 const DEFAULT_COLUMNS: Column[] = [
-  { key: 'flag', label: '' },
   { key: 'contract', label: 'Contract' },
   { key: 'vendor', label: 'Vendor' },
   { key: 'category', label: 'Category' },
-  { key: 'status', label: 'Stage' },
-  { key: 'reviewer', label: 'Reviewer' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'overall', label: 'Status' },
+  { key: 'owner', label: 'Procurement owner' },
   { key: 'value', label: 'Value', numeric: true },
   { key: 'expires', label: 'Expires' },
-  { key: 'nextDue', label: 'Next due' },
 ];
 
 const SORTABLE: ReadonlySet<ColumnKey> = new Set([
   'contract',
   'vendor',
   'category',
-  'status',
-  'reviewer',
+  'priority',
+  'overall',
+  'owner',
   'value',
   'expires',
-  'lastAction',
-  'nextDue',
+  'submitted',
 ]);
 
 type SortDir = 'asc' | 'desc';
@@ -88,13 +87,6 @@ export function ContractTable({
       <thead>
         <tr>
           {columns.map((column) => {
-            if (column.key === 'flag') {
-              return (
-                <th key={column.key} scope="col" className={styles.flagCell}>
-                  <span className="visually-hidden">Attention indicator</span>
-                </th>
-              );
-            }
             if (SORTABLE.has(column.key)) {
               return (
                 <SortHeader<ColumnKey>
@@ -133,31 +125,19 @@ export function ContractTable({
             {emptyMessage}
           </TableEmptyRow>
         ) : (
-          sortedRows.map((row) => {
-            const stage = statusInfo(row.status);
-            return (
-              <tr
-                key={row.contractId}
-                className={styles.bodyRow}
-                onClick={() => navigate(`/contracts/${row.contractId}`)}
-              >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={
-                      column.numeric
-                        ? styles.numeric
-                        : column.key === 'flag'
-                          ? styles.flagCell
-                          : undefined
-                    }
-                  >
-                    {renderCell(column, row, stage)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })
+          sortedRows.map((row) => (
+            <tr
+              key={row.contractId}
+              className={styles.bodyRow}
+              onClick={() => navigate(`/contracts/${row.contractId}`)}
+            >
+              {columns.map((column) => (
+                <td key={column.key} className={column.numeric ? styles.numeric : undefined}>
+                  {renderCell(column, row)}
+                </td>
+              ))}
+            </tr>
+          ))
         )}
       </tbody>
     </TableShell>
@@ -183,20 +163,33 @@ function compare(a: ContractRowDto, b: ContractRowDto, key: ColumnKey): number {
       return a.vendorName.localeCompare(b.vendorName);
     case 'category':
       return a.category.localeCompare(b.category);
-    case 'status':
-      return a.status.localeCompare(b.status);
-    case 'reviewer':
-      return (a.assignedReviewerName ?? '').localeCompare(b.assignedReviewerName ?? '');
+    case 'priority':
+      return priorityOrder(a.priority) - priorityOrder(b.priority);
+    case 'overall':
+      return a.overallStatus.localeCompare(b.overallStatus);
+    case 'owner':
+      return (a.procurementOwnerName ?? '').localeCompare(b.procurementOwnerName ?? '');
     case 'value':
       return compareNumbers(a.totalCostUsd, b.totalCostUsd);
     case 'expires':
       return compareDates(a.termEndDate, b.termEndDate);
-    case 'lastAction':
-      return compareDates(a.lastActionAt, b.lastActionAt);
-    case 'nextDue':
-      return compareDates(a.nextActionDueAt, b.nextActionDueAt);
+    case 'submitted':
+      return compareDates(a.submittedAt, b.submittedAt);
     default:
       return 0;
+  }
+}
+
+function priorityOrder(p: PriorityApi): number {
+  switch (p) {
+    case 'Critical':
+      return 0;
+    case 'High':
+      return 1;
+    case 'Medium':
+      return 2;
+    case 'Low':
+      return 3;
   }
 }
 
@@ -215,16 +208,19 @@ function compareNumbers(left: number | null, right: number | null): number {
   return left - right;
 }
 
-function renderCell(
-  column: Column,
-  row: ContractRowDto,
-  stage: ReturnType<typeof statusInfo>,
-): React.ReactNode {
+function overallBadge(status: OverallStatusApi): BadgeStatus {
+  switch (status) {
+    case 'Active':
+      return 'info';
+    case 'Completed':
+      return 'live';
+    case 'Canceled':
+      return 'failed';
+  }
+}
+
+function renderCell(column: Column, row: ContractRowDto): React.ReactNode {
   switch (column.key) {
-    case 'flag':
-      return row.needsAttention ? (
-        <span className={styles.flagDot} aria-label="Needs attention" />
-      ) : null;
     case 'contract':
       return (
         <div className={styles.contractName}>
@@ -238,17 +234,21 @@ function renderCell(
       return row.vendorName;
     case 'category':
       return row.category;
-    case 'status':
-      return <Badge status={stage.badge}>{stage.label}</Badge>;
-    case 'reviewer':
-      return row.assignedReviewerName ?? <span className={styles.muted}>Unassigned</span>;
+    case 'priority':
+      return PRIORITY_LABEL[row.priority];
+    case 'overall':
+      return (
+        <Badge status={overallBadge(row.overallStatus)}>
+          {OVERALL_STATUS_LABEL[row.overallStatus]}
+        </Badge>
+      );
+    case 'owner':
+      return row.procurementOwnerName ?? <span className={styles.muted}>Unassigned</span>;
     case 'value':
       return formatUsd(row.totalCostUsd);
     case 'expires':
       return formatShortDate(row.termEndDate);
-    case 'lastAction':
-      return formatShortDate(row.lastActionAt);
-    case 'nextDue':
-      return formatShortDate(row.nextActionDueAt);
+    case 'submitted':
+      return formatShortDate(row.submittedAt);
   }
 }

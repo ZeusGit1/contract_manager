@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/mws/Button';
 import { api, apiJson } from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
 import type { BulkUploadPreviewDto, BulkUploadRowDto, VendorSuggestionDto } from '@/types/api';
 import styles from './BulkUploadScreen.module.css';
 import { AddVendorInline } from './AddVendorInline';
@@ -71,6 +73,8 @@ const COLUMNS: { key: EditableField; label: string }[] = [
 ];
 
 export function BulkUploadScreen() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [source, setSource] = useState<BulkSourceId | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [rows, setRows] = useState<BulkUploadRowDto[]>([]);
@@ -108,6 +112,9 @@ export function BulkUploadScreen() {
       setRows([]);
       setSkipped(new Set());
       if (fileInput.current) fileInput.current.value = '';
+      // Every contract list — Dashboard, Archive, MySubmissions, Reports — refreshes so
+      // the newly-committed rows appear immediately.
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
     },
   });
 
@@ -312,10 +319,23 @@ export function BulkUploadScreen() {
             </Button>
           </div>
           {commitMutation.data ? (
-            <p className={styles.success}>
-              Imported {commitMutation.data.importedCount}; skipped{' '}
-              {commitMutation.data.skippedCount}.
-            </p>
+            <div className={styles.success}>
+              <p style={{ margin: 0 }}>
+                Imported {commitMutation.data.importedCount}; skipped{' '}
+                {commitMutation.data.skippedCount}.
+              </p>
+              {commitMutation.data.importedCount > 0 ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="arrow-right"
+                  onClick={() => navigate('/master')}
+                  style={{ marginTop: 'var(--space-3)' }}
+                >
+                  View contracts
+                </Button>
+              ) : null}
+            </div>
           ) : null}
           {commitMutation.error ? (
             <p className={styles.error}>{commitMutation.error.message}</p>

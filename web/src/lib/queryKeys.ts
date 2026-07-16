@@ -15,6 +15,7 @@ export const queryKeys = {
     notifications: (id: number) => ['contracts', id, 'notifications'] as const,
     assignments: (id: number) => ['contracts', id, 'assignments'] as const,
     attachments: (id: number) => ['contracts', id, 'attachments'] as const,
+    lanes: (id: number) => ['contracts', id, 'lanes'] as const,
   },
   vendors: {
     all: ['vendors'] as const,
@@ -23,4 +24,8 @@ export const queryKeys = {
     detail: (id: number) => ['vendors', 'detail', id] as const,
   },
   reminderSettings: ['reminder-settings'] as const,
+  users: {
+    all: ['users'] as const,
+    list: () => ['users', 'list'] as const,
+  },
 };

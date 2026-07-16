@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/mws/Button';
 import { ApiError, apiJson } from '@/lib/apiClient';
 import { useCurrentUser } from '@/features/auth/useCurrentUser';
@@ -60,6 +60,7 @@ const INITIAL_FORM: FormState = {
 export function IntakeITScreen() {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [vendorQuery, setVendorQuery] = useState('');
 
@@ -77,9 +78,12 @@ export function IntakeITScreen() {
         method: 'POST',
         body: buildCreateBody(input, currentUser.data?.email ?? ''),
       }),
-    // Phase 1 prototype: dashboard reads synthetic data, so the API-issued
-    // contractId won't match. Land on the dashboard with a success banner.
-    onSuccess: (detail) => navigate(`/?submitted=${encodeURIComponent(detail.contractNumber)}`),
+    onSuccess: (detail) => {
+      // Refresh every contract list (Dashboard, Archive, MySubmissions, Reports) so the
+      // new row appears immediately.
+      queryClient.invalidateQueries({ queryKey: queryKeys.contracts.all });
+      navigate(`/?submitted=${encodeURIComponent(detail.contractNumber)}`);
+    },
   });
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) =>

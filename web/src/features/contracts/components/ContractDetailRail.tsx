@@ -22,9 +22,9 @@ export function ContractDetailRail({ contract }: ContractDetailRailProps) {
         <dl className={styles.list}>
           <Row label="Requester" value={contract.requesterName} />
           <Row
-            label="Reviewer"
-            value={contract.assignedReviewerName ?? 'Unassigned'}
-            muted={!contract.assignedReviewerName}
+            label="Procurement owner"
+            value={contract.procurementOwnerName ?? 'Unassigned'}
+            muted={!contract.procurementOwnerName}
           />
         </dl>
       </section>
@@ -35,7 +35,6 @@ export function ContractDetailRail({ contract }: ContractDetailRailProps) {
           <Row label="Submitted" value={formatShortDate(contract.submittedAt)} />
           <Row label="Term start" value={formatFullDate(contract.termStartDate)} />
           <Row label="Term end" value={formatFullDate(contract.termEndDate)} />
-          <Row label="Next action due" value={formatShortDate(contract.nextActionDueAt)} />
           <Row label="Last update" value={formatFullDate(contract.lastActionAt)} />
         </dl>
       </section>
