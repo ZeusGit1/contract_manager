@@ -378,7 +378,9 @@ function AddVendorModal({ onClose }: { onClose: () => void }) {
           />
         </label>
         {createVendor.error ? (
-          <p className={styles.fieldError}>Couldn&apos;t save the vendor. Try again.</p>
+          <p className={styles.fieldError}>
+            {createVendor.error.message || "Couldn't save the vendor. Try again."}
+          </p>
         ) : null}
         <div className={styles.modalActions}>
           <Button variant="secondary" type="button" onClick={onClose}>
