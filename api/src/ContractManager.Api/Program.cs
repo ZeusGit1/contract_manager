@@ -46,6 +46,16 @@ if (!string.IsNullOrWhiteSpace(azureAdSection["TenantId"]))
         .AddMicrosoftIdentityWebApi(azureAdSection);
 }
 
+// DEV-ONLY: if the gitignored DevBypass class is present AND environment is
+// Development, let it override the auth scheme with a mock-user handler. Uses
+// reflection so this Program.cs compiles cleanly when the DevBypass folder is
+// absent (i.e. everywhere outside a developer's local checkout).
+if (builder.Environment.IsDevelopment())
+{
+    var devBypass = Type.GetType("ContractManager.Api.DevBypass.DevBypass, ContractManager.Api");
+    devBypass?.GetMethod("Install")?.Invoke(null, new object[] { builder });
+}
+
 builder.Services.AddAuthorization(options =>
 {
     // ProcurementAdmin ⊃ Procurement — the admin policy also satisfies the Procurement
@@ -105,26 +115,50 @@ builder.Services.AddScoped<IBulkUploadService, BulkUploadService>();
 // flips to GraphMail later, a GraphMailSender registration replaces this line.
 builder.Services.AddScoped<IMailSender, InAppLogOnlyMailSender>();
 
-// Blob storage client — Managed Identity in real environments; the test factory swaps this out.
-builder.Services.AddSingleton(serviceProvider =>
+// Blob storage — Managed Identity → Azure Blob in real environments; filesystem in dev.
+// Program.cs picks by whether BlobServiceUri is configured. The test factory swaps
+// the IAttachmentBlobStore registration directly.
+builder.Services.AddSingleton<IAttachmentBlobStore>(serviceProvider =>
 {
     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AttachmentOptions>>().Value;
-    if (string.IsNullOrWhiteSpace(options.BlobServiceUri))
+    if (!string.IsNullOrWhiteSpace(options.BlobServiceUri))
     {
-        // Lazy placeholder — real deployments must set Attachments:BlobServiceUri.
-        // The attachment endpoints throw on use; everything else runs.
-        return new Azure.Storage.Blobs.BlobContainerClient(
-            new Uri("https://placeholder.blob.core.windows.net/" + options.ContainerName));
+        var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(
+            new Uri(options.BlobServiceUri), new Azure.Identity.DefaultAzureCredential());
+        var container = blobServiceClient.GetBlobContainerClient(options.ContainerName);
+        return new AzureBlobAttachmentStore(container);
     }
-    var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(
-        new Uri(options.BlobServiceUri), new Azure.Identity.DefaultAzureCredential());
-    return blobServiceClient.GetBlobContainerClient(options.ContainerName);
+    // No Azure endpoint configured. In Development, fall back to a filesystem store so
+    // local smoke-testing works without Azurite. Everywhere else this is a config bug.
+    if (!builder.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "Attachments:BlobServiceUri is required outside Development. " +
+            "Set it in configuration or grant the app's Managed Identity access to the storage account.");
+    }
+    var root = string.IsNullOrWhiteSpace(options.LocalStoragePath)
+        ? Path.Combine(AppContext.BaseDirectory, "attachments-local")
+        : options.LocalStoragePath;
+    return new FilesystemAttachmentStore(root);
 });
 
 // Phase 1 reminders are log-only — no IHostedService mail loop (ADR-034 supersedes
 // the v1.0 ADR-006 design). Future Graph Mail send wires here per ADR-039.
 
 var app = builder.Build();
+
+// DEV-ONLY: run the seed routine on startup if the gitignored DevBypass is present.
+// No-op outside Development or when the DevBypass folder is absent.
+if (app.Environment.IsDevelopment())
+{
+    var devBypass = Type.GetType("ContractManager.Api.DevBypass.DevBypass, ContractManager.Api");
+    var seedMethod = devBypass?.GetMethod("SeedAsync");
+    if (seedMethod is not null)
+    {
+        var task = (Task)seedMethod.Invoke(null, new object?[] { app.Services, CancellationToken.None })!;
+        await task;
+    }
+}
 
 // Middleware pipeline order — per api-performance.md:
 // Exception → HTTPS → CORS → OperationId → AFD lockdown → Auth → Authz
