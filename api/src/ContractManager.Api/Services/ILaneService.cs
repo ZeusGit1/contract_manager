@@ -104,12 +104,17 @@ public class LaneService : ILaneService
             changes.Add("owner cleared");
             _activity.Record(contract, ActivityType.LaneOwnerChanged, $"{laneId} lane: owner cleared");
         }
-        else if (isExternal && request.OwnerLabel is not null)
+        else if (request.OwnerLabel is not null)
         {
+            // Free-text owner label — works for any lane. Procurement records the reviewer's
+            // name (outside counsel, an in-house reviewer, or a vendor contact) without
+            // requiring an Entra user link. If the label matches a firm user, that mapping
+            // can be added later.
             lane.OwnerLabel = request.OwnerLabel;
             lane.OwnerUserId = null;
-            changes.Add("owner label set");
-            _activity.Record(contract, ActivityType.LaneOwnerChanged, $"{laneId} lane: owner label set");
+            changes.Add("owner set");
+            _activity.Record(contract, ActivityType.LaneOwnerChanged,
+                $"{laneId} lane: owner set to {request.OwnerLabel}");
         }
         else if (!isExternal && request.OwnerUserId.HasValue)
         {

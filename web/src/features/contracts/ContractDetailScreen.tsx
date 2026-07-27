@@ -145,28 +145,35 @@ function ContractDetailBody({ contract, apiDetail }: ContractDetailBodyProps) {
   };
 
   const handleLaneSave = (idx: number, patch: Partial<ContractLane>) => {
-    const laneClientObj = lanes[idx];
-    if (!laneClientObj) return;
+    const original = lanes[idx];
+    if (!original) return;
     setMutationError(null);
+
+    // Only send fields that actually changed vs. the current lane. Sending clearX only
+    // when the caller emptied a previously-set value prevents "record note change → API
+    // logs owner cleared" false positives when the field was already empty.
+    const nextOwner = patch.owner ?? null;
+    const nextDueDate = patch.dueDate ?? null;
+    const nextNote = patch.note ?? null;
+    const ownerChanged = original.owner !== nextOwner;
+    const dueDateChanged = original.dueDate !== nextDueDate;
+    const noteChanged = original.note !== nextNote;
+    const statusChanged = patch.status !== undefined && patch.status !== original.status;
+
     updateLane.mutate(
       {
-        laneId: laneIdToApi(laneClientObj.id),
+        laneId: laneIdToApi(original.id),
         patch: {
-          status: patch.status ? laneStatusToApi(patch.status) : undefined,
-          // The Phase1 lane owner is a name string (from the API's OwnerName). Persist it as
-          // OwnerLabel — mutations don't know which firm user (if any) it maps to. Passing
-          // an empty string maps to ClearOwner.
-          ownerLabel:
-            patch.owner === undefined
-              ? undefined
-              : patch.owner === null || patch.owner === ''
-                ? null
-                : patch.owner,
-          clearOwner: patch.owner === null || patch.owner === '',
-          dueDate: patch.dueDate === undefined ? undefined : patch.dueDate,
-          clearDueDate: patch.dueDate === null || patch.dueDate === '',
-          note: patch.note === undefined ? undefined : patch.note,
-          clearNote: patch.note === null || patch.note === '',
+          status: statusChanged && patch.status ? laneStatusToApi(patch.status) : undefined,
+          // Owner is a free-text label — works for any lane (Legal / InfoSec / Privacy / GCO
+          // reviewers as well as Vendor / Requester / Signature). The API accepts OwnerLabel
+          // on every lane; OwnerUserId links to a firm user only when we have the mapping.
+          ownerLabel: ownerChanged && nextOwner ? nextOwner : undefined,
+          clearOwner: ownerChanged && !nextOwner,
+          dueDate: dueDateChanged && nextDueDate ? nextDueDate : undefined,
+          clearDueDate: dueDateChanged && !nextDueDate,
+          note: noteChanged && nextNote ? nextNote : undefined,
+          clearNote: noteChanged && !nextNote,
         },
       },
       {
@@ -248,7 +255,7 @@ function ContractDetailBody({ contract, apiDetail }: ContractDetailBodyProps) {
 
       <div className={detailStyles.detailLayout}>
         <div className={detailStyles.mainColumn}>
-          <section className={detailStyles.laneSection}>
+          <section className={detailStyles.laneSection} data-review-lanes>
             <div className={detailStyles.laneSectionHead}>
               <p className={detailStyles.laneSectionTitle}>Review lanes</p>
               <span className={detailStyles.laneSectionCaption}>
@@ -290,9 +297,33 @@ function ContractDetailBody({ contract, apiDetail }: ContractDetailBodyProps) {
           <ApprovalsSection
             lanes={lanes}
             isClosed={isClosed}
-            onRecord={(idx) => {
+            isSaving={updateLane.isPending}
+            onApprove={(idx, input) => {
+              const lane = lanes[idx];
+              if (!lane) return;
+              setMutationError(null);
+              updateLane.mutate(
+                {
+                  laneId: laneIdToApi(lane.id),
+                  patch: {
+                    status: laneStatusToApi('approved'),
+                    ownerLabel: input.ownerLabel,
+                    note: input.note ?? undefined,
+                  },
+                },
+                { onError: (err) => surfaceError('Recording approval failed', err) },
+              );
+            }}
+            onOpenDetails={(idx) => {
               setLanesExpanded(true);
               setEditingLaneIdx(idx);
+              // Scroll the review-lanes editor into view so the user sees the form
+              // appear instead of wondering where the click went.
+              requestAnimationFrame(() => {
+                document
+                  .querySelector('[data-review-lanes]')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              });
             }}
           />
 
